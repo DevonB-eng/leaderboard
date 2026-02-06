@@ -6,6 +6,13 @@ import 'package:leaderboard/screens/settings_screen.dart';
 import 'package:leaderboard/utils/screen_time.dart';
 import 'package:leaderboard/utils/authentication.dart';
 
+/*
+home_screen.dart - the main homepage
+- displays leaderboard if user is in a group, otherwise prompts user to join or create a group
+- has buttons to navigate to settings page, my screentime page, and to sign out
+*/
+// TODO: I bet this whole page could be more modular and readable. I should fix that
+
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -29,10 +36,10 @@ class HomeScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Screentime Leaderboard'),
+        title: Text('Screentime Leaderboard'), // TODO: this text is displayed as "Screentime Leaderboa...", fix it
         backgroundColor: const Color.fromARGB(255, 225, 78, 16),
         actions: [
-          IconButton(
+          IconButton( // I should copy strava and have these buttons on the bottom with their names underneath. 
             icon: const Icon(Icons.timer),
             tooltip: 'My Screentime',
             onPressed: () {
@@ -57,8 +64,10 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
+
       body: FutureBuilder<bool>(
         future: _isUserInGroup(),
+        // Loading bullshit
         builder: (context, groupSnapshot) {
           if (groupSnapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -92,7 +101,7 @@ class HomeScreen extends StatelessWidget {
                     const SizedBox(height: 32),
                     ElevatedButton.icon(
                       onPressed: () {
-                        // Navigate to settings screen
+                        // Navigate to settings screen (is routing to the settings screen the best way to handle group creation/joining?)
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -129,7 +138,6 @@ class HomeScreen extends StatelessWidget {
               }
 
               final docs = snapshot.data?.docs ?? [];
-
               if (docs.isEmpty) {
                 return const Center(
                   child: Text('No users yet. Be the first to upload screentime!'),
@@ -145,7 +153,7 @@ class HomeScreen extends StatelessWidget {
                   final isCurrentUser = userId == user?.uid;
                   final badAppsData = data['badAppsBreakdown'] as List<dynamic>?;
 
-                  // Fetch username from users collection
+                  // Get/display usernames instead of emails
                   return FutureBuilder<DocumentSnapshot>(
                     future: FirebaseFirestore.instance
                         .collection('users')

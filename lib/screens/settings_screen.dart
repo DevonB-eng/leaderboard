@@ -6,6 +6,12 @@ import 'package:leaderboard/utils/screen_time.dart';
 import 'package:leaderboard/utils/authentication.dart';
 import 'package:leaderboard/screens/home_screen.dart';
 
+/*
+settings_screen.dart - the settings page for the app
+- group settings (join/create/leave group & choose bad apps) 
+- personal settings (placeholder for now)
+*/
+
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
 
@@ -17,8 +23,6 @@ class SettingsScreenState extends State<SettingsScreen> {
   bool isInGroup = false;
   String? currentGroupId;
   String? currentGroupName;
-  // bool _groupSettingsExpanded = false;
-  // bool _personalSettingsExpanded = false;
 
   @override
   void initState() {
@@ -92,16 +96,12 @@ class SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
-
+  
+/* ===== Shit for group settings ===== */
   Widget groupSettingsPage() {
     return ExpansionTile(
       title: const Text('Group Settings', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
       initiallyExpanded: true,
-      // onExpansionChanged: (expanded) {
-        // setState(() {
-        //   _groupSettingsExpanded = expanded;
-        // });
-      // },
       children: [
         Padding(
           padding: const EdgeInsets.all(16.0),
@@ -125,60 +125,6 @@ class SettingsScreenState extends State<SettingsScreen> {
           onPressed: createGroup,
           icon: const Icon(Icons.group_add),
           label: const Text('Create Group'),
-        ),
-      ],
-    );
-  }
-
-  Widget inGroupOptions() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (currentGroupName != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12.0),
-            child: Text(
-              'Current Group: $currentGroupName',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ElevatedButton.icon(
-          onPressed: leaveGroup,
-          icon: const Icon(Icons.exit_to_app),
-          label: const Text('Leave Group'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.red,
-            foregroundColor: Colors.white,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget personalSettingsPage() {
-    return ExpansionTile(
-      title: const Text(
-        'Personal Settings',
-        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-      ),
-      initiallyExpanded: true,
-      // onExpansionChanged: (expanded) {
-      //   setState(() {
-      //     _personalSettingsExpanded = expanded;
-      //   });
-      // },
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            children: [
-              const Text(
-                'Personal settings will be added here',
-                style: TextStyle(color: Colors.grey),
-              ),
-            ],
-          ),
         ),
       ],
     );
@@ -259,7 +205,6 @@ class SettingsScreenState extends State<SettingsScreen> {
 
   void showPasswordDialog(String groupId, String groupName) {
     final passwordController = TextEditingController();
-
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -318,56 +263,6 @@ class SettingsScreenState extends State<SettingsScreen> {
               }
             },
             child: const Text('Join'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void leaveGroup() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Leave Group'),
-        content: const Text('Are you sure you want to leave this group?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final userId = FirebaseAuth.instance.currentUser!.uid;
-
-              // Remove user from group's memberIds
-              await FirebaseFirestore.instance
-                  .collection('groups')
-                  .doc(currentGroupId)
-                  .update({
-                'memberIds': FieldValue.arrayRemove([userId]),
-              });
-
-              // Remove groupId from user's document
-              await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(userId)
-                  .update({'groupId': FieldValue.delete()});
-
-              Navigator.pop(context);
-              setState(() {
-                isInGroup = false;
-                currentGroupId = null;
-                currentGroupName = null;
-              });
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Left the group')),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Leave'),
           ),
         ],
       ),
@@ -451,4 +346,105 @@ class SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
+
+  Widget inGroupOptions() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (currentGroupName != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12.0),
+            child: Text(
+              'Current Group: $currentGroupName',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ElevatedButton.icon(
+          onPressed: leaveGroup,
+          icon: const Icon(Icons.exit_to_app),
+          label: const Text('Leave Group'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.red,
+            foregroundColor: Colors.white,
+          ),
+        ),
+      ],
+    );
+  }
+  
+  void leaveGroup() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Leave Group'),
+        content: const Text('Are you sure you want to leave this group?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final userId = FirebaseAuth.instance.currentUser!.uid;
+
+              // Remove user from group's memberIds
+              await FirebaseFirestore.instance
+                  .collection('groups')
+                  .doc(currentGroupId)
+                  .update({
+                'memberIds': FieldValue.arrayRemove([userId]),
+              });
+
+              // Remove groupId from user's document
+              await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(userId)
+                  .update({'groupId': FieldValue.delete()});
+
+              Navigator.pop(context);
+              setState(() {
+                isInGroup = false;
+                currentGroupId = null;
+                currentGroupName = null;
+              });
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Left the group')),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Leave'),
+          ),
+        ],
+      ),
+    );
+  }
+
+/* ===== Shit for personal settings ===== */
+  Widget personalSettingsPage() {
+    return ExpansionTile(
+      title: const Text(
+        'Personal Settings',
+        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      ),
+      initiallyExpanded: true,
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              const Text(
+                'Personal settings will be added here',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
 }

@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:leaderboard/utils/authentication.dart';
-//import 'package:leaderboard/screens/user_info_screen.dart';
+
+/*
+email_sign_in_button.dart - the button that users click to sign in with email
+- when clicked, shows a dialog where users can enter their email and password to sign in or sign up
+- also has a loading state while signing in which is super pimp
+*/
 
 class EmailSignInButton extends StatefulWidget {
   @override

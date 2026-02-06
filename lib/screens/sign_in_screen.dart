@@ -4,6 +4,11 @@ import 'package:leaderboard/res/custom_colors.dart';
 import 'package:leaderboard/utils/authentication.dart';
 import 'package:leaderboard/widgets/email_sign_in_button.dart';
 
+/*
+sign_in_screen.dart - the screen that users see when they are not authenticated
+- has a button to sign in with email (maybe add some other authentication but idk...)
+*/
+
 class SignInScreen extends StatefulWidget {
   @override
   _SignInScreenState createState() => _SignInScreenState();
@@ -40,14 +45,14 @@ class _SignInScreenState extends State<SignInScreen> {
                     ),
                     SizedBox(height: 20),
                     Text(
-                      'FlutterFire',
+                      'Leaderboard',
                       style: TextStyle(
                         color: CustomColors.firebaseYellow,
                         fontSize: 40,
                       ),
                     ),
                     Text(
-                      'Authentication',
+                      'Sign In',
                       style: TextStyle(
                         color: CustomColors.firebaseOrange,
                         fontSize: 40,
@@ -65,7 +70,7 @@ class _SignInScreenState extends State<SignInScreen> {
                     return Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        EmailSignInButton()
+                        EmailSignInButton() // the holy sign in button. I can add more here later
                       ],
                     );
                   }

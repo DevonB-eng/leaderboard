@@ -6,6 +6,10 @@ import 'firebase_options.dart';
 import 'package:leaderboard/screens/sign_in_screen.dart';
 import 'package:leaderboard/screens/home_screen.dart';
 
+/*
+main.dart - the main entry point for the app
+- initializes firebase and forwards user to appropriate screen based on authentication state
+*/
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,12 +25,12 @@ class AppUsageApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
+      debugShowCheckedModeBanner: false, // Do I want this here? 
       theme: ThemeData(primarySwatch: Colors.green),
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
-          if (snapshot.hasData) {
+          if (snapshot.hasData) { // Route User to home screen or to sign in screen based on authentication state
             return const HomeScreen();
           }
           return SignInScreen();

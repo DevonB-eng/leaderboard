@@ -3,6 +3,11 @@ import 'package:app_usage/app_usage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+/*
+screen_time.dart - pulls screentime data from "bad apps" and uploades to firestone
+- get screentime data for the past 24 hours (maybe add weekly later for reports and whatnot)
+*/
+
 class AppUsageHomePage extends StatefulWidget {
   const AppUsageHomePage({super.key});
 
@@ -14,7 +19,7 @@ class AppUsageHomePageState extends State<AppUsageHomePage> {
   List<AppUsageInfo> _infos = [];
   bool _isLoading = false;
 
-  // List of "bad" apps to track
+  // List of "bad" apps to track - users should be able to modify this in settings but for now I'm hardcoding it
   final Set<String> _badApps = {
     'instagram',
     'facebook',
@@ -101,7 +106,8 @@ class AppUsageHomePageState extends State<AppUsageHomePage> {
 
     print("Data synced to Firebase! Total bad minutes: $totalBadMinutes");
   }
-  //TODO: create a new page in screens menu
+  
+  //TODO: create a new page in screens menu - wtf does this mean?
   @override
   Widget build(BuildContext context) {
 

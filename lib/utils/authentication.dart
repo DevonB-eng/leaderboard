@@ -3,6 +3,13 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+/*
+authentication.dart - handles signing in and whatnot
+- sign up with email and password (also adds user to users collection in firestore)
+- sign in with email and password
+- sign out
+*/
+
 class Authentication {
   static SnackBar customSnackBar({required String content}) {
     return SnackBar(
