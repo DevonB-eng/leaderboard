@@ -3,8 +3,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
 
-import 'package:test_proj/screens/sign_in_screen.dart';
-import 'package:test_proj/screens/home_screen.dart';
+import 'package:leaderboard/screens/sign_in_screen.dart';
+import 'package:leaderboard/screens/home_screen.dart';
 
 
 Future<void> main() async {

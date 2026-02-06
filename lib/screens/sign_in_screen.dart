@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-import 'package:test_proj/res/custom_colors.dart';
-import 'package:test_proj/utils/authentication.dart';
-import 'package:test_proj/widgets/email_sign_in_button.dart';
+import 'package:leaderboard/res/custom_colors.dart';
+import 'package:leaderboard/utils/authentication.dart';
+import 'package:leaderboard/widgets/email_sign_in_button.dart';
 
 class SignInScreen extends StatefulWidget {
   @override

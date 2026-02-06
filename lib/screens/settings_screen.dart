@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import 'package:test_proj/utils/screen_time.dart';
-import 'package:test_proj/utils/authentication.dart';
-import 'package:test_proj/screens/home_screen.dart';
+import 'package:leaderboard/utils/screen_time.dart';
+import 'package:leaderboard/utils/authentication.dart';
+import 'package:leaderboard/screens/home_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});

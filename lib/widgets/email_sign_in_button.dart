@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-import 'package:test_proj/utils/authentication.dart';
+import 'package:leaderboard/utils/authentication.dart';
 //import 'package:leaderboard/screens/user_info_screen.dart';
 
 class EmailSignInButton extends StatefulWidget {
