@@ -74,8 +74,9 @@ class Authentication {
 
       return credential.user;
     } on FirebaseAuthException catch (e) {
+      // TODO: formatting of error code should be updated to fit the app when I do my graphic design shit
       if (e.code == 'weak-password') {
-        await showErrorDialog(context: context, message: 'The password provided is too weak.');
+        await showErrorDialog(context: context, message: 'The password provided is too weak (must be at least 6 characters).'); 
       } else if (e.code == 'email-already-in-use') {
         await showErrorDialog(context: context, message: 'An account already exists for that email.');
       } else {
@@ -106,7 +107,7 @@ class Authentication {
       } else if (e.code == 'invalid-email') {
         await showErrorDialog(context: context, message: 'Invalid email address.');
       } else {
-        await showErrorDialog(context: context, message: 'Auth error during sign in: ${e.message}');
+        await showErrorDialog(context: context, message: 'Incorrect email  and/or password. Try again.');
       }
     } catch (e) {
       await showErrorDialog(context: context, message: 'Error occurred during sign in. Try again.');

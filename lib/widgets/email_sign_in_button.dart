@@ -23,15 +23,17 @@ class _EmailSignInButtonState extends State<EmailSignInButton> {
     final TextEditingController passwordController = TextEditingController();
     bool isSignUp = false;
 
+    // Capture scaffold context here, before the dialog opens
+    final scaffoldContext = context;
+
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
           title: Text(isSignUp ? 'Sign Up with Email' : 'Sign In with Email'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Only show username field during sign up
               if (isSignUp) ...[
                 TextField(
                   controller: nameController,
@@ -68,9 +70,9 @@ class _EmailSignInButtonState extends State<EmailSignInButton> {
                   });
                 },
                 child: Text(
-                  isSignUp 
-                    ? 'Already have an account? Sign In' 
-                    : 'Don\'t have an account? Sign Up',
+                  isSignUp
+                      ? 'Already have an account? Sign In'
+                      : 'Don\'t have an account? Sign Up',
                   style: TextStyle(fontSize: 12),
                 ),
               ),
@@ -78,50 +80,48 @@ class _EmailSignInButtonState extends State<EmailSignInButton> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () async {
-                Navigator.pop(context);
+                // Validate username before doing anything
+                if (isSignUp && nameController.text.trim().isEmpty) {
+                  await Authentication.showErrorDialog(
+                    context: dialogContext,
+                    message: 'Please enter a username.',
+                  );
+                  return;
+                }
 
+                // Close dialog first, then start loading
+                Navigator.pop(dialogContext);
                 setState(() {
                   _isSigningIn = true;
                 });
 
-                // User? user;
-
-                if (isSignUp) {
-                  // Only validate username during sign up
-                  if (nameController.text.trim().isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Please enter a username')),
+                try {
+                  if (isSignUp) {
+                    await Authentication.signUpwithEmailAndPassword(
+                      context: scaffoldContext,
+                      username: nameController.text.trim(),
+                      email: emailController.text.trim(),
+                      password: passwordController.text,
                     );
-                    setState(() {
-                      _isSigningIn = false;
-                    });
-                    return;
+                  } else {
+                    await Authentication.signInWithEmailAndPassword(
+                      context: scaffoldContext,
+                      email: emailController.text.trim(),
+                      password: passwordController.text,
+                    );
                   }
-                  // user = await Authentication.signUpwithEmailAndPassword(
-                  await Authentication.signUpwithEmailAndPassword(
-                    context: context,
-                    username: nameController.text.trim(),
-                    email: emailController.text.trim(),
-                    password: passwordController.text,
-                  );
-                } else {
-                  // Sign in flow should not require a username
-                  // user = await Authentication.signInWithEmailAndPassword(
-                  await Authentication.signInWithEmailAndPassword(
-                    context: context,
-                    email: emailController.text.trim(),
-                    password: passwordController.text,
-                  );
+                } finally {
+                  // finally ensures _isSigningIn is ALWAYS set to false
+                  // even if an unexpected exception slips through
+                  setState(() {
+                    _isSigningIn = false;
+                  });
                 }
-
-                setState(() {
-                  _isSigningIn = false;
-                });
               },
               child: Text(isSignUp ? 'Sign Up' : 'Sign In'),
             ),
@@ -134,7 +134,7 @@ class _EmailSignInButtonState extends State<EmailSignInButton> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0), 
+      padding: const EdgeInsets.only(bottom: 16.0),
       child: _isSigningIn
           ? CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
@@ -166,7 +166,7 @@ class _EmailSignInButtonState extends State<EmailSignInButton> {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                    )
+                    ),
                   ],
                 ),
               ),

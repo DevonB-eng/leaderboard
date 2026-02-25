@@ -31,7 +31,7 @@ class _SignInScreenState extends State<SignInScreen> {
             children: [
               Row(),
               Expanded(
-                //TODO: make this the home screen for my app, not flutterfire
+                //TODO: make this screen look pretty (my app needs a theme)
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   mainAxisAlignment: MainAxisAlignment.center,
