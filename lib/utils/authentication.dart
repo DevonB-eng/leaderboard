@@ -12,7 +12,6 @@ authentication.dart - handles signing in and whatnot
 
 class Authentication {
   // Shows an error dialog in the center of the screen
-  //TODO; verify errors are being shown and possibly update formatting
   static Future<void> showErrorDialog({
     required BuildContext context,
     required String message,
@@ -75,6 +74,7 @@ class Authentication {
       return credential.user;
     } on FirebaseAuthException catch (e) {
       // TODO: formatting of error code should be updated to fit the app when I do my graphic design shit
+      // showErrorDialog is a custom function that I update pretty easily
       if (e.code == 'weak-password') {
         await showErrorDialog(context: context, message: 'The password provided is too weak (must be at least 6 characters).'); 
       } else if (e.code == 'email-already-in-use') {

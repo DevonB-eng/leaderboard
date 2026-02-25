@@ -35,23 +35,28 @@ class SettingsScreenState extends State<SettingsScreen> {
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) return;
 
-    final userDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .get();
-
-    if (userDoc.exists && userDoc.data()?['groupId'] != null) {
-      final groupId = userDoc.data()!['groupId'];
-      final groupDoc = await FirebaseFirestore.instance
-          .collection('groups')
-          .doc(groupId)
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
           .get();
 
-      setState(() {
-        isInGroup = true;
-        currentGroupId = groupId;
-        currentGroupName = groupDoc.data()?['name'] ?? 'Unknown Group';
-      });
+      if (userDoc.exists && userDoc.data()?['groupId'] != null) {
+        final groupId = userDoc.data()!['groupId'];
+        final groupDoc = await FirebaseFirestore.instance
+            .collection('groups')
+            .doc(groupId)
+            .get();
+
+        setState(() {
+          isInGroup = true;
+          currentGroupId = groupId;
+          currentGroupName = groupDoc.data()?['name'] ?? 'Unknown Group';
+        });
+      }
+    } catch (e) {
+      // Can't show a dialog here since this runs on init before context is ready
+      debugPrint('Error checking group status: $e');
     }
   }
 
@@ -96,7 +101,7 @@ class SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
-  
+
 /* ===== group settings ===== */
   Widget groupSettingsPage() {
     return ExpansionTile(
@@ -134,10 +139,13 @@ class SettingsScreenState extends State<SettingsScreen> {
     final searchController = TextEditingController();
     List<QueryDocumentSnapshot> searchResults = [];
 
+    // Capture scaffold context before the dialog opens
+    final scaffoldContext = context;
+
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) {
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) {
           return AlertDialog(
             title: const Text('Join Group'),
             content: Column(
@@ -150,16 +158,22 @@ class SettingsScreenState extends State<SettingsScreen> {
                     prefixIcon: Icon(Icons.search),
                   ),
                   onChanged: (value) async {
-                    // Search groups by name
                     if (value.isNotEmpty) {
-                      final results = await FirebaseFirestore.instance
-                          .collection('groups')
-                          .where('name', isGreaterThanOrEqualTo: value)
-                          .where('name', isLessThanOrEqualTo: '$value\uf8ff')
-                          .get();
-                      setDialogState(() {
-                        searchResults = results.docs;
-                      });
+                      try {
+                        final results = await FirebaseFirestore.instance
+                            .collection('groups')
+                            .where('name', isGreaterThanOrEqualTo: value)
+                            .where('name', isLessThanOrEqualTo: '$value\uf8ff')
+                            .get();
+                        setDialogState(() {
+                          searchResults = results.docs;
+                        });
+                      } catch (e) {
+                        await Authentication.showErrorDialog(
+                          context: dialogContext,
+                          message: 'Error searching for groups: $e',
+                        );
+                      }
                     } else {
                       setDialogState(() {
                         searchResults = [];
@@ -182,8 +196,10 @@ class SettingsScreenState extends State<SettingsScreen> {
                               title: Text(group['name']),
                               subtitle: Text('${group['memberIds'].length} members'),
                               onTap: () {
-                                Navigator.pop(context);
-                                showPasswordDialog(group.id, group['name']);
+                                Navigator.pop(dialogContext);
+                                // Pass scaffoldContext through so showPasswordDialog
+                                // always has a valid mounted context
+                                showPasswordDialog(scaffoldContext, group.id, group['name']);
                               },
                             );
                           },
@@ -193,7 +209,7 @@ class SettingsScreenState extends State<SettingsScreen> {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop(dialogContext),
                 child: const Text('Cancel'),
               ),
             ],
@@ -203,11 +219,13 @@ class SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void showPasswordDialog(String groupId, String groupName) {
+  // scaffoldContext is now passed in explicitly instead of captured inside
+  void showPasswordDialog(BuildContext scaffoldContext, String groupId, String groupName) {
     final passwordController = TextEditingController();
+
     showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
+      context: scaffoldContext,
+      builder: (dialogContext) => AlertDialog(
         title: Text('Join $groupName'),
         content: TextField(
           controller: passwordController,
@@ -219,46 +237,55 @@ class SettingsScreenState extends State<SettingsScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
-              // Verify password and join group
-              final groupDoc = await FirebaseFirestore.instance
-                  .collection('groups')
-                  .doc(groupId)
-                  .get();
-
-              if (groupDoc.data()?['password'] == passwordController.text) {
-                final userId = FirebaseAuth.instance.currentUser!.uid;
-
-                // Add user to group's memberIds
-                await FirebaseFirestore.instance
+              try {
+                final groupDoc = await FirebaseFirestore.instance
                     .collection('groups')
                     .doc(groupId)
-                    .update({
-                  'memberIds': FieldValue.arrayUnion([userId]),
-                });
+                    .get();
 
-                // Update user's document with groupId
-                await FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(userId)
-                    .set({'groupId': groupId}, SetOptions(merge: true));
+                if (groupDoc.data()?['password'] == passwordController.text) {
+                  final userId = FirebaseAuth.instance.currentUser!.uid;
 
-                Navigator.pop(context);
-                setState(() {
-                  isInGroup = true;
-                  currentGroupId = groupId;
-                  currentGroupName = groupName;
-                });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Joined $groupName')),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Incorrect password')),
+                  // Add user to group's memberIds
+                  await FirebaseFirestore.instance
+                      .collection('groups')
+                      .doc(groupId)
+                      .update({
+                    'memberIds': FieldValue.arrayUnion([userId]),
+                  });
+
+                  // Update user's document with groupId
+                  await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(userId)
+                      .set({'groupId': groupId}, SetOptions(merge: true));
+
+                  Navigator.pop(dialogContext);
+                  setState(() {
+                    isInGroup = true;
+                    currentGroupId = groupId;
+                    currentGroupName = groupName;
+                  });
+                  ScaffoldMessenger.of(scaffoldContext).showSnackBar(
+                    SnackBar(content: Text('Joined $groupName')),
+                  );
+                } else {
+                  // Wrong password — dialog is still open so dialogContext is valid here
+                  await Authentication.showErrorDialog(
+                    context: dialogContext,
+                    message: 'Incorrect password.',
+                  );
+                }
+              } catch (e) {
+                Navigator.pop(dialogContext);
+                await Authentication.showErrorDialog(
+                  context: scaffoldContext,
+                  message: 'Error joining group: $e',
                 );
               }
             },
@@ -269,13 +296,16 @@ class SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  void createGroup() async {
+  void createGroup() {
     final nameController = TextEditingController();
     final passwordController = TextEditingController();
 
+    // Capture scaffold context before the dialog opens
+    final scaffoldContext = context;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Create Group'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -300,45 +330,55 @@ class SettingsScreenState extends State<SettingsScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
               if (nameController.text.isEmpty || passwordController.text.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please fill all fields')),
+                // Dialog still open — dialogContext is fine for this validation error
+                await Authentication.showErrorDialog(
+                  context: dialogContext,
+                  message: 'Please fill in all fields.',
                 );
                 return;
               }
 
-              final userId = FirebaseAuth.instance.currentUser!.uid;
-              final groupRef = FirebaseFirestore.instance.collection('groups').doc();
+              try {
+                final userId = FirebaseAuth.instance.currentUser!.uid;
+                final groupRef = FirebaseFirestore.instance.collection('groups').doc();
 
-              // Create the group
-              await groupRef.set({
-                'name': nameController.text,
-                'password': passwordController.text,
-                'memberIds': [userId],
-                'createdAt': FieldValue.serverTimestamp(),
-                'createdBy': userId,
-              });
+                // Create the group
+                await groupRef.set({
+                  'name': nameController.text,
+                  'password': passwordController.text,
+                  'memberIds': [userId],
+                  'createdAt': FieldValue.serverTimestamp(),
+                  'createdBy': userId,
+                });
 
-              // Update user's document with groupId
-              await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(userId)
-                  .set({'groupId': groupRef.id}, SetOptions(merge: true));
+                // Update user's document with groupId
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(userId)
+                    .set({'groupId': groupRef.id}, SetOptions(merge: true));
 
-              Navigator.pop(context);
-              setState(() {
-                isInGroup = true;
-                currentGroupId = groupRef.id;
-                currentGroupName = nameController.text;
-              });
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Created group: ${nameController.text}')),
-              );
+                Navigator.pop(dialogContext);
+                setState(() {
+                  isInGroup = true;
+                  currentGroupId = groupRef.id;
+                  currentGroupName = nameController.text;
+                });
+                ScaffoldMessenger.of(scaffoldContext).showSnackBar(
+                  SnackBar(content: Text('Created group: ${nameController.text}')),
+                );
+              } catch (e) {
+                Navigator.pop(dialogContext);
+                await Authentication.showErrorDialog(
+                  context: scaffoldContext,
+                  message: 'Error creating group: $e',
+                );
+              }
             },
             child: const Text('Create'),
           ),
@@ -372,45 +412,56 @@ class SettingsScreenState extends State<SettingsScreen> {
       ],
     );
   }
-  
+
   void leaveGroup() {
+    // Capture scaffold context before the dialog opens
+    final scaffoldContext = context;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Leave Group'),
         content: const Text('Are you sure you want to leave this group?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
             onPressed: () async {
-              final userId = FirebaseAuth.instance.currentUser!.uid;
+              try {
+                final userId = FirebaseAuth.instance.currentUser!.uid;
 
-              // Remove user from group's memberIds
-              await FirebaseFirestore.instance
-                  .collection('groups')
-                  .doc(currentGroupId)
-                  .update({
-                'memberIds': FieldValue.arrayRemove([userId]),
-              });
+                // Remove user from group's memberIds
+                await FirebaseFirestore.instance
+                    .collection('groups')
+                    .doc(currentGroupId)
+                    .update({
+                  'memberIds': FieldValue.arrayRemove([userId]),
+                });
 
-              // Remove groupId from user's document
-              await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(userId)
-                  .update({'groupId': FieldValue.delete()});
+                // Remove groupId from user's document
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(userId)
+                    .update({'groupId': FieldValue.delete()});
 
-              Navigator.pop(context);
-              setState(() {
-                isInGroup = false;
-                currentGroupId = null;
-                currentGroupName = null;
-              });
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Left the group')),
-              );
+                Navigator.pop(dialogContext);
+                setState(() {
+                  isInGroup = false;
+                  currentGroupId = null;
+                  currentGroupName = null;
+                });
+                ScaffoldMessenger.of(scaffoldContext).showSnackBar(
+                  const SnackBar(content: Text('Left the group')),
+                );
+              } catch (e) {
+                Navigator.pop(dialogContext);
+                await Authentication.showErrorDialog(
+                  context: scaffoldContext,
+                  message: 'Error leaving group: $e',
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.red,
@@ -446,5 +497,4 @@ class SettingsScreenState extends State<SettingsScreen> {
       ],
     );
   }
-
 }

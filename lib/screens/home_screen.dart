@@ -12,12 +12,26 @@ home_screen.dart - the main homepage
 - has buttons to navigate to settings page, my screentime page, and to sign out
 */
 // TODO: I bet this whole page could be more modular and readable. I should fix that
+// TODO: add permissions requests for screen time, notifications, etc.
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
+  @override
+  HomeScreenState createState() => HomeScreenState();
+}
+
+class HomeScreenState extends State<HomeScreen> {
+  // Store the future in state so we can refresh it on demand
+  late Future<bool> _isInGroupFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _isInGroupFuture = _isUserInGroup();
+  }
+
   // Check if user is in a group
-  //TODO: the page does not refresh to show if user is in group or not, app needs to be restarted to update group status
   Future<bool> _isUserInGroup() async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) return false;
@@ -30,33 +44,38 @@ class HomeScreen extends StatelessWidget {
     return userDoc.exists && userDoc.data()?['groupId'] != null;
   }
 
+  // Re-run the group check and rebuild the widget
+  void _refreshGroupStatus() {
+    setState(() {
+      _isInGroupFuture = _isUserInGroup();
+    });
+  }
+
+  // Navigate to a screen and refresh group status when returning
+  void _navigateAndRefresh(Widget screen) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => screen),
+    ).then((_) => _refreshGroupStatus());
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      appBar: AppBar( // title and navigation buttons (move navigation buttons to the bottom of the screen)
+      appBar: AppBar(
         title: Text('Screentime Leaderboard'), // TODO: this text is displayed as "Screentime Leaderboa...", fix it
         backgroundColor: const Color.fromARGB(255, 225, 78, 16),
         actions: [
-          IconButton( // I should copy strava and have these buttons on the bottom with their names underneath. 
+          IconButton( // I should copy strava and have these buttons on the bottom with their names underneath.
             icon: const Icon(Icons.timer),
             tooltip: 'My Screentime',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const AppUsageHomePage()),
-              );
-            },
+            onPressed: () => _navigateAndRefresh(const AppUsageHomePage()),
           ),
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SettingsScreen()),
-              );
-            },
+            onPressed: () => _navigateAndRefresh(const SettingsScreen()),
           ),
           IconButton(
             icon: const Icon(Icons.logout),
@@ -66,8 +85,7 @@ class HomeScreen extends StatelessWidget {
       ),
 
       body: FutureBuilder<bool>(
-        future: _isUserInGroup(),
-        // Loading bullshit
+        future: _isInGroupFuture,
         builder: (context, groupSnapshot) {
           if (groupSnapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -100,14 +118,7 @@ class HomeScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 32),
                     ElevatedButton.icon(
-                      onPressed: () {
-                        // Navigate to settings screen (is routing to the settings screen the best way to handle group creation/joining?)
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const SettingsScreen()),
-                        );
-                      },
+                      onPressed: () => _navigateAndRefresh(const SettingsScreen()),
                       icon: const Icon(Icons.group_add),
                       label: const Text('Join or Create Group'),
                       style: ElevatedButton.styleFrom(
