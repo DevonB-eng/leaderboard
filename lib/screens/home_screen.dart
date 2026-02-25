@@ -35,7 +35,7 @@ class HomeScreen extends StatelessWidget {
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppBar( // title and navigation buttons (move navigation buttons to the bottom of the screen)
         title: Text('Screentime Leaderboard'), // TODO: this text is displayed as "Screentime Leaderboa...", fix it
         backgroundColor: const Color.fromARGB(255, 225, 78, 16),
         actions: [

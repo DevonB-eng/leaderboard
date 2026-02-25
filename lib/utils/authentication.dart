@@ -11,13 +11,34 @@ authentication.dart - handles signing in and whatnot
 */
 
 class Authentication {
-  static SnackBar customSnackBar({required String content}) {
-    return SnackBar(
-      backgroundColor: Colors.black,
-      content: Text(
-        content,
-        style: TextStyle(color: Colors.redAccent, letterSpacing: 0.5),
-      ),
+  // Shows an error dialog in the center of the screen
+  //TODO; verify errors are being shown and possibly update formatting
+  static Future<void> showErrorDialog({
+    required BuildContext context,
+    required String message,
+  }) async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          backgroundColor: Colors.black,
+          title: Text(
+            'Error',
+            style: TextStyle(color: Colors.redAccent),
+          ),
+          content: Text(
+            message,
+            style: TextStyle(color: Colors.white, letterSpacing: 0.5),
+          ),
+          actions: [
+            TextButton(
+              child: Text('OK', style: TextStyle(color: Colors.redAccent)),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -25,21 +46,20 @@ class Authentication {
     required BuildContext context,
   }) async {
     FirebaseApp firebaseApp = await Firebase.initializeApp();
-
     return firebaseApp;
   }
 
   static Future<User?> signUpwithEmailAndPassword({
     required BuildContext context,
-    required String username, 
+    required String username,
     required String email,
     required String password,
   }) async {
-      try {
-        final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: email,
-          password: password,
-        );
+    try {
+      final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
 
       if (credential.user != null) {
         await FirebaseFirestore.instance
@@ -52,22 +72,17 @@ class Authentication {
         });
       }
 
-      return credential.user; 
-      // TODO: errors are not showing in app (to be tested)
+      return credential.user;
     } on FirebaseAuthException catch (e) {
       if (e.code == 'weak-password') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('The password provided is too weak.')),
-        );
+        await showErrorDialog(context: context, message: 'The password provided is too weak.');
       } else if (e.code == 'email-already-in-use') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('The account already exists for that email.')),
-        );
+        await showErrorDialog(context: context, message: 'An account already exists for that email.');
+      } else {
+        await showErrorDialog(context: context, message: 'Auth error during sign up: ${e.message}');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error occurred during sign up. Try again.')),
-      );
+      await showErrorDialog(context: context, message: 'Error occurred during sign up. Try again.');
     }
     return null;
   }
@@ -85,34 +100,25 @@ class Authentication {
       return credential.user;
     } on FirebaseAuthException catch (e) {
       if (e.code == 'user-not-found') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('No user found for that email.')),
-        );
+        await showErrorDialog(context: context, message: 'No user found for that email.');
       } else if (e.code == 'wrong-password') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Wrong password provided.')),
-        );
-        } else if (e.code == 'invalid-email') {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Invalid email address.')),
-        );
+        await showErrorDialog(context: context, message: 'Wrong password provided.');
+      } else if (e.code == 'invalid-email') {
+        await showErrorDialog(context: context, message: 'Invalid email address.');
+      } else {
+        await showErrorDialog(context: context, message: 'Auth error during sign in: ${e.message}');
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error occurred during sign in. Try again.')),
-      );
+      await showErrorDialog(context: context, message: 'Error occurred during sign in. Try again.');
     }
     return null;
   }
-  
-  static Future<void> signOut({required BuildContext context}) async {
 
+  static Future<void> signOut({required BuildContext context}) async {
     try {
       await FirebaseAuth.instance.signOut();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error signing out. Try again.')),
-      );
+      await showErrorDialog(context: context, message: 'Error signing out. Try again.');
     }
   }
 }

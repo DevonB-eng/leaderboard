@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+// import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:leaderboard/utils/authentication.dart';
 
@@ -89,7 +89,7 @@ class _EmailSignInButtonState extends State<EmailSignInButton> {
                   _isSigningIn = true;
                 });
 
-                User? user;
+                // User? user;
 
                 if (isSignUp) {
                   // Only validate username during sign up
@@ -102,7 +102,8 @@ class _EmailSignInButtonState extends State<EmailSignInButton> {
                     });
                     return;
                   }
-                  user = await Authentication.signUpwithEmailAndPassword(
+                  // user = await Authentication.signUpwithEmailAndPassword(
+                  await Authentication.signUpwithEmailAndPassword(
                     context: context,
                     username: nameController.text.trim(),
                     email: emailController.text.trim(),
@@ -110,7 +111,8 @@ class _EmailSignInButtonState extends State<EmailSignInButton> {
                   );
                 } else {
                   // Sign in flow should not require a username
-                  user = await Authentication.signInWithEmailAndPassword(
+                  // user = await Authentication.signInWithEmailAndPassword(
+                  await Authentication.signInWithEmailAndPassword(
                     context: context,
                     email: emailController.text.trim(),
                     password: passwordController.text,

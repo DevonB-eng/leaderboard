@@ -6,8 +6,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 /*
 screen_time.dart - pulls screentime data from "bad apps" and uploades to firestone
 - get screentime data for the past 24 hours (maybe add weekly later for reports and whatnot)
-*/
-
+*/ 
+// TODO: update the ios folder to pull the same screentime data (do I need a new package?)
+// - pretty sure that this whole file is gonna have to be rewritten for ios but whateva
 class AppUsageHomePage extends StatefulWidget {
   const AppUsageHomePage({super.key});
 
@@ -107,7 +108,6 @@ class AppUsageHomePageState extends State<AppUsageHomePage> {
     print("Data synced to Firebase! Total bad minutes: $totalBadMinutes");
   }
   
-  //TODO: create a new page in screens menu - wtf does this mean?
   @override
   Widget build(BuildContext context) {
 

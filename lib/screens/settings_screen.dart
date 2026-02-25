@@ -29,7 +29,7 @@ class SettingsScreenState extends State<SettingsScreen> {
     super.initState();
     checkUserGroupStatus();
   }
-  //TODO: remove functions from here and into new file
+
   // Check if user is already in a group
   Future<void> checkUserGroupStatus() async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
@@ -97,7 +97,7 @@ class SettingsScreenState extends State<SettingsScreen> {
     );
   }
   
-/* ===== Shit for group settings ===== */
+/* ===== group settings ===== */
   Widget groupSettingsPage() {
     return ExpansionTile(
       title: const Text('Group Settings', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -423,7 +423,7 @@ class SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-/* ===== Shit for personal settings ===== */
+/* ===== personal settings ===== */
   Widget personalSettingsPage() {
     return ExpansionTile(
       title: const Text(
