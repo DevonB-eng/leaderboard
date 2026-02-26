@@ -6,18 +6,43 @@ const admin = require("firebase-admin");
 admin.initializeApp();
 const db = getFirestore();
 
-// Limit concurrent function instances for cost control
 setGlobalOptions({ maxInstances: 10 });
+
+// ===== timezone helper =====
+// PST = -8, PDT = -7 (update this when daylight saving changes)
+const PST_OFFSET_HOURS = -8;
+
+function getCurrentHourPST() {
+  const utcHour = new Date().getUTCHours();
+  return (utcHour + 24 + PST_OFFSET_HOURS) % 24;
+}
+
+// ===== activity helper =====
+// Returns true if a screentime doc was updated within the last 35 minutes.
+// 35 min gives a small buffer over the 30-min schedule to avoid edge cases.
+function isRecentlyActive(screentimeData) {
+  if (!screentimeData?.lastUpdated) return false;
+  const lastUpdated = screentimeData.lastUpdated.toDate();
+  const minutesAgo = (Date.now() - lastUpdated.getTime()) / 1000 / 60;
+  return minutesAgo <= 35;
+}
 
 /**
  * Runs every 30 minutes.
- * For each group, reads screentime/{uid} for each member,
- * embeds usernames, sorts by totalBadMinutes desc,
- * and writes a single leaderboard doc to groups/{groupId}/leaderboard/current.
+ * Skips entirely during quiet hours (midnight–6am PST).
+ * Skips a group if no members have uploaded screentime in the last 35 minutes.
+ * Otherwise aggregates screentime into groups/{groupId}/leaderboard/current.
  */
 exports.aggregateLeaderboards = onSchedule("every 30 minutes", async (event) => {
-  const groupsSnapshot = await db.collection("groups").get();
 
+  // ===== quiet hours check =====
+  const currentHour = getCurrentHourPST();
+  if (currentHour >= 0 && currentHour < 6) {
+    console.log(`Quiet hours active (${currentHour}:xx PST). Skipping run.`);
+    return;
+  }
+
+  const groupsSnapshot = await db.collection("groups").get();
   if (groupsSnapshot.empty) {
     console.log("No groups found.");
     return;
@@ -33,34 +58,44 @@ exports.aggregateLeaderboards = onSchedule("every 30 minutes", async (event) => 
       return;
     }
 
-    const entries = [];
+    // ===== fetch all member screentime docs =====
+    const screentimeDocs = await Promise.all(
+      memberIds.map((uid) => db.collection("screentime").doc(uid).get())
+    );
 
-    for (const uid of memberIds) {
-      const userDoc = await db.collection("users").doc(uid).get();
-      const username = userDoc.exists ? (userDoc.data().username ?? "Unknown") : "Unknown";
+    // ===== skip if no members have been active recently =====
+    const anyActive = screentimeDocs.some(
+      (doc) => doc.exists && isRecentlyActive(doc.data())
+    );
+    if (!anyActive) {
+      console.log(`Group ${groupId}: no recent activity, skipping.`);
+      return;
+    }
 
-      const screentimeDoc = await db.collection("screentime").doc(uid).get();
+    // ===== build leaderboard entries =====
+    const userDocs = await Promise.all(
+      memberIds.map((uid) => db.collection("users").doc(uid).get())
+    );
 
+    const entries = memberIds.map((uid, i) => {
+      const username = userDocs[i].exists
+        ? (userDocs[i].data().username ?? "Unknown")
+        : "Unknown";
+
+      const screentimeDoc = screentimeDocs[i];
       if (!screentimeDoc.exists) {
-        entries.push({
-          uid,
-          username,
-          totalBadMinutes: 0,
-          badAppsBreakdown: [],
-          lastUpdated: null,
-        });
-        continue;
+        return { uid, username, totalBadMinutes: 0, badAppsBreakdown: [], lastUpdated: null };
       }
 
       const st = screentimeDoc.data();
-      entries.push({
+      return {
         uid,
         username,
         totalBadMinutes: st.totalBadMinutes ?? 0,
         badAppsBreakdown: st.badAppsBreakdown ?? [],
         lastUpdated: st.lastUpdated ?? null,
-      });
-    }
+      };
+    });
 
     entries.sort((a, b) => b.totalBadMinutes - a.totalBadMinutes);
 
