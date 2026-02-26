@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:leaderboard/screens/settings_screen.dart';
+import 'package:leaderboard/screens/user_stats_screen.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'package:leaderboard/utils/screen_time.dart';
 import 'package:leaderboard/utils/authentication.dart';
@@ -29,8 +31,92 @@ class HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _isInGroupFuture = _isUserInGroup();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+      requestPermissions();
+    });
   }
 
+  // ===== permissions =====
+  // TODO: verify that the permissions are working properly  
+  Future<void> requestPermissions() async {
+    await requestNotificationPermission();
+    await requestUsageStatsPermission();
+  }
+
+    // Notification permission — standard runtime dialog on Android 13+
+  Future<void> requestNotificationPermission() async {
+    final status = await Permission.notification.status;
+    if (status.isDenied) {
+      final result = await Permission.notification.request();
+      if (result.isPermanentlyDenied && mounted) {
+        // User has permanently blocked notifications — direct them to settings
+        showPermissionDialog(
+          title: 'Notifications Blocked',
+          message:
+              'Notifications are permanently blocked. Please enable them in your device settings to receive leaderboard updates.',
+          onConfirm: () => openAppSettings(),
+        );
+      }
+    }
+  }
+
+    // Usage stats permission — special permission that requires the user to
+  // manually grant it in system settings, cannot be requested via dialog
+  Future<void> requestUsageStatsPermission() async {
+    final status = await Permission.appTrackingTransparency.status;
+    // app_usage provides its own usage stats check — use it directly
+    final hasUsageAccess = await ScreenTimeService.checkUsageStatsGranted();
+    if (!hasUsageAccess && mounted) {
+      showPermissionDialog(
+        title: 'Screen Time Access Required',
+        message:
+            'This app needs access to your usage stats to track screen time. '
+            'Tap "Open Settings", then find this app and toggle on "Permit usage access".',
+        onConfirm: () async {
+          // Opens the special usage access settings page directly
+          await Permission.manageExternalStorage.request();
+          openAppSettings();
+        },
+        confirmLabel: 'Open Settings',
+      );
+    }
+  }
+
+    // Reusable permission explanation dialog
+  void showPermissionDialog({
+    required String title,
+    required String message,
+    required VoidCallback onConfirm,
+    String confirmLabel = 'Allow',
+  }) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Not Now'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              onConfirm();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color.fromARGB(255, 225, 78, 16),
+              foregroundColor: Colors.white,
+            ),
+            child: Text(confirmLabel),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ===== group shit =====
   // Check if user is in a group
   Future<bool> _isUserInGroup() async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
@@ -71,7 +157,7 @@ class HomeScreenState extends State<HomeScreen> {
           IconButton( // I should copy strava and have these buttons on the bottom with their names underneath.
             icon: const Icon(Icons.timer),
             tooltip: 'My Screentime',
-            onPressed: () => _navigateAndRefresh(const AppUsageHomePage()),
+            onPressed: () => _navigateAndRefresh(const UserStatsPage()),
           ),
           IconButton(
             icon: const Icon(Icons.settings),

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:leaderboard/screens/user_stats_screen.dart';
 
-import 'package:leaderboard/utils/screen_time.dart';
 import 'package:leaderboard/utils/authentication.dart';
 import 'package:leaderboard/screens/home_screen.dart';
 
@@ -11,6 +11,7 @@ settings_screen.dart - the settings page for the app
 - group settings (join/create/leave group & choose bad apps) 
 - personal settings (placeholder for now)
 */
+// TODO: add about section with app info. maybe add a link to the github repo for the project too
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -73,7 +74,7 @@ class SettingsScreenState extends State<SettingsScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => const AppUsageHomePage()),
+                MaterialPageRoute(builder: (context) => const UserStatsPage()),
               );
             },
           ),

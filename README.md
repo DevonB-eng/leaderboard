@@ -5,8 +5,9 @@
 ## Implementation
 
 - user signs in with email/password (no google auth because not necessary)
-- flutter allows for development of both ios and android
+- flutter allows for development of both ios and android (currently android only)
 - firestone database allows for real time updating and group creation
+- ability to add or remove apps to "bad apps" list per group decision
 
 ## Features
 
