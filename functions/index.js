@@ -8,8 +8,6 @@ const db = getFirestore();
 
 setGlobalOptions({ maxInstances: 10 });
 
-// ===== timezone helper =====
-// PST = -8, PDT = -7 (update this when daylight saving changes)
 const PST_OFFSET_HOURS = -8;
 
 function getCurrentHourPST() {
@@ -17,9 +15,6 @@ function getCurrentHourPST() {
   return (utcHour + 24 + PST_OFFSET_HOURS) % 24;
 }
 
-// ===== activity helper =====
-// Returns true if a screentime doc was updated within the last 35 minutes.
-// 35 min gives a small buffer over the 30-min schedule to avoid edge cases.
 function isRecentlyActive(screentimeData) {
   if (!screentimeData?.lastUpdated) return false;
   const lastUpdated = screentimeData.lastUpdated.toDate();
@@ -27,12 +22,22 @@ function isRecentlyActive(screentimeData) {
   return minutesAgo <= 35;
 }
 
-/**
- * Runs every 30 minutes.
- * Skips entirely during quiet hours (midnight–6am PST).
- * Skips a group if no members have uploaded screentime in the last 35 minutes.
- * Otherwise aggregates screentime into groups/{groupId}/leaderboard/current.
- */
+// Returns the set of app display names that have >= 50% of member votes.
+// If appVotes is missing entirely, all apps are considered active (default on).
+// If a specific app has no entry in appVotes, it is also considered active.
+function getActiveApps(appVotes, totalMembers) {
+  // No vote data at all — everything is active
+  if (!appVotes || Object.keys(appVotes).length === 0) return null;
+
+  const activeApps = new Set();
+  for (const [appName, voters] of Object.entries(appVotes)) {
+    if (voters.length > totalMembers / 2) {
+      activeApps.add(appName);
+    }
+  }
+  return activeApps;
+}
+
 exports.aggregateLeaderboards = onSchedule("every 30 minutes", async (event) => {
 
   // ===== quiet hours check =====
@@ -52,16 +57,22 @@ exports.aggregateLeaderboards = onSchedule("every 30 minutes", async (event) => 
     const groupId = groupDoc.id;
     const groupData = groupDoc.data();
     const memberIds = groupData.memberIds || [];
+    const appVotes = groupData.appVotes || {};
 
     if (memberIds.length === 0) {
       console.log(`Group ${groupId} has no members, skipping.`);
       return;
     }
 
-    // ===== fetch all member screentime docs =====
-    const screentimeDocs = await Promise.all(
-      memberIds.map((uid) => db.collection("screentime").doc(uid).get())
-    );
+    // ===== compute active apps from votes =====
+    // null means "no vote data — treat all apps as active"
+    const activeApps = getActiveApps(appVotes, memberIds.length);
+
+    // ===== fetch all member screentime and user docs in parallel =====
+    const [screentimeDocs, userDocs] = await Promise.all([
+      Promise.all(memberIds.map((uid) => db.collection("screentime").doc(uid).get())),
+      Promise.all(memberIds.map((uid) => db.collection("users").doc(uid).get())),
+    ]);
 
     // ===== skip if no members have been active recently =====
     const anyActive = screentimeDocs.some(
@@ -73,26 +84,35 @@ exports.aggregateLeaderboards = onSchedule("every 30 minutes", async (event) => 
     }
 
     // ===== build leaderboard entries =====
-    const userDocs = await Promise.all(
-      memberIds.map((uid) => db.collection("users").doc(uid).get())
-    );
-
     const entries = memberIds.map((uid, i) => {
       const username = userDocs[i].exists
         ? (userDocs[i].data().username ?? "Unknown")
         : "Unknown";
 
-      const screentimeDoc = screentimeDocs[i];
-      if (!screentimeDoc.exists) {
+      if (!screentimeDocs[i].exists) {
         return { uid, username, totalBadMinutes: 0, badAppsBreakdown: [], lastUpdated: null };
       }
 
-      const st = screentimeDoc.data();
+      const st = screentimeDocs[i].data();
+      const rawBreakdown = st.badAppsBreakdown ?? [];
+
+      // Filter breakdown to only apps that passed the vote threshold.
+      // If activeApps is null, no filtering — all apps are shown.
+      const filteredBreakdown = activeApps === null
+        ? rawBreakdown
+        : rawBreakdown.filter((item) => activeApps.has(item.appName));
+
+      // Recompute total from the filtered breakdown so the leaderboard
+      // score reflects only the apps the group agreed to track.
+      const totalBadMinutes = filteredBreakdown.reduce(
+        (sum, item) => sum + (item.minutes ?? 0), 0
+      );
+
       return {
         uid,
         username,
-        totalBadMinutes: st.totalBadMinutes ?? 0,
-        badAppsBreakdown: st.badAppsBreakdown ?? [],
+        totalBadMinutes,
+        badAppsBreakdown: filteredBreakdown,
         lastUpdated: st.lastUpdated ?? null,
       };
     });
@@ -109,7 +129,7 @@ exports.aggregateLeaderboards = onSchedule("every 30 minutes", async (event) => 
         entries,
       });
 
-    console.log(`Updated leaderboard for group ${groupId} (${entries.length} members)`);
+    console.log(`Updated leaderboard for group ${groupId} (${entries.length} members, ${activeApps?.size ?? 'all'} active apps)`);
   });
 
   await Promise.all(tasks);
