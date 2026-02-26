@@ -1,1 +1,37 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"screentime-strava","appId":"1:750546719924:android:5985472a25ff16e8bcf3e1","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"screentime-strava","configurations":{"android":"1:750546719924:android:5985472a25ff16e8bcf3e1","ios":"1:750546719924:ios:dea146041e3fd258bcf3e1","web":"1:750546719924:web:c24746fe75cb5e25bcf3e1"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "screentime-strava",
+          "appId": "1:750546719924:android:5985472a25ff16e8bcf3e1",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "screentime-strava",
+          "configurations": {
+            "android": "1:750546719924:android:5985472a25ff16e8bcf3e1",
+            "ios": "1:750546719924:ios:dea146041e3fd258bcf3e1",
+            "web": "1:750546719924:web:c24746fe75cb5e25bcf3e1"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "disallowLegacyRuntimeConfig": true,
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
+    }
+  ]
+}

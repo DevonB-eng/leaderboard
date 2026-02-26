@@ -85,7 +85,7 @@ class ScreenTimeService {
         .map((e) => {'appName': e.key, 'minutes': e.value.toDouble()})
         .toList();
 
-    await FirebaseFirestore.instance.collection('leaderboard').doc(user.uid).set({
+    await FirebaseFirestore.instance.collection('screentime').doc(user.uid).set({
       'uid': user.uid,
       'totalBadMinutes': totalBadMinutes,
       'badAppsBreakdown': badAppsBreakdown,

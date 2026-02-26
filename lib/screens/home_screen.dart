@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -24,32 +25,126 @@ class HomeScreen extends StatefulWidget {
 }
 
 class HomeScreenState extends State<HomeScreen> {
-  // Store the future in state so we can refresh it on demand
-  late Future<bool> _isInGroupFuture;
+  // Group state
+  String? _groupId;
+  late Future<String?> _groupFuture;
+
+  // Leaderboard state
+  Future<DocumentSnapshot>? _leaderboardFuture;
+
+  // 30-min upload + refresh timer
+  Timer? _syncTimer;
+
+  final _service = ScreenTimeService();
 
   @override
   void initState() {
     super.initState();
-    _isInGroupFuture = _isUserInGroup();
-        WidgetsBinding.instance.addPostFrameCallback((_) {
+    _groupFuture = _fetchGroupId();
+    _groupFuture.then((groupId) {
+      if (groupId != null && mounted) {
+        setState(() {
+          _groupId = groupId;
+          _leaderboardFuture = _fetchLeaderboard(groupId);
+        });
+        _startSyncTimer();
+      }
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       requestPermissions();
     });
   }
 
-  // ===== permissions =====
-  // TODO: verify that the permissions are working properly  
+  @override
+  void dispose() {
+    _syncTimer?.cancel();
+    super.dispose();
+  }
+
+  // ===== sync timer =====
+
+  void _startSyncTimer() {
+    _syncTimer?.cancel();
+    _syncTimer = Timer.periodic(const Duration(minutes: 30), (_) {
+      _uploadAndRefresh();
+    });
+  }
+
+  Future<void> _uploadAndRefresh() async {
+    if (_groupId == null) return;
+    try {
+      final badAppUsage = await _service.fetchBadAppUsage();
+      await _service.uploadScreentime(badAppUsage);
+    } catch (e) {
+      debugPrint('Screentime upload error: $e');
+    }
+    if (mounted) {
+      setState(() {
+        _leaderboardFuture = _fetchLeaderboard(_groupId!);
+      });
+    }
+  }
+
+  // ===== firebase fetches =====
+
+  // Returns groupId string if user is in a group, null otherwise
+  Future<String?> _fetchGroupId() async {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    if (userId == null) return null;
+    final userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(userId)
+        .get();
+    final groupId = userDoc.data()?['groupId'] as String?;
+    return groupId;
+  }
+
+  // Reads the single pre-aggregated leaderboard doc for this group
+  Future<DocumentSnapshot> _fetchLeaderboard(String groupId) {
+    return FirebaseFirestore.instance
+        .collection('groups')
+        .doc(groupId)
+        .collection('leaderboard')
+        .doc('current')
+        .get();
+  }
+
+  // ===== navigation =====
+
+  void _refreshGroupStatus() {
+    setState(() {
+      _groupFuture = _fetchGroupId();
+    });
+    _groupFuture.then((groupId) {
+      if (!mounted) return;
+      setState(() {
+        _groupId = groupId;
+        _leaderboardFuture =
+            groupId != null ? _fetchLeaderboard(groupId) : null;
+      });
+      if (groupId != null) _startSyncTimer();
+    });
+  }
+
+  void _navigateAndRefresh(Widget screen) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => screen),
+    ).then((_) => _refreshGroupStatus());
+  }
+
+  // ===== permissions (unchanged) =====
+
   Future<void> requestPermissions() async {
     await requestNotificationPermission();
     await requestUsageStatsPermission();
   }
 
-    // Notification permission — standard runtime dialog on Android 13+
   Future<void> requestNotificationPermission() async {
     final status = await Permission.notification.status;
     if (status.isDenied) {
       final result = await Permission.notification.request();
       if (result.isPermanentlyDenied && mounted) {
-        // User has permanently blocked notifications — direct them to settings
         showPermissionDialog(
           title: 'Notifications Blocked',
           message:
@@ -60,11 +155,7 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
-    // Usage stats permission — special permission that requires the user to
-  // manually grant it in system settings, cannot be requested via dialog
   Future<void> requestUsageStatsPermission() async {
-    final status = await Permission.appTrackingTransparency.status;
-    // app_usage provides its own usage stats check — use it directly
     final hasUsageAccess = await ScreenTimeService.checkUsageStatsGranted();
     if (!hasUsageAccess && mounted) {
       showPermissionDialog(
@@ -73,7 +164,6 @@ class HomeScreenState extends State<HomeScreen> {
             'This app needs access to your usage stats to track screen time. '
             'Tap "Open Settings", then find this app and toggle on "Permit usage access".',
         onConfirm: () async {
-          // Opens the special usage access settings page directly
           await Permission.manageExternalStorage.request();
           openAppSettings();
         },
@@ -82,7 +172,6 @@ class HomeScreenState extends State<HomeScreen> {
     }
   }
 
-    // Reusable permission explanation dialog
   void showPermissionDialog({
     required String title,
     required String message,
@@ -116,34 +205,7 @@ class HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ===== group shit =====
-  // Check if user is in a group
-  Future<bool> _isUserInGroup() async {
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) return false;
-
-    final userDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(userId)
-        .get();
-
-    return userDoc.exists && userDoc.data()?['groupId'] != null;
-  }
-
-  // Re-run the group check and rebuild the widget
-  void _refreshGroupStatus() {
-    setState(() {
-      _isInGroupFuture = _isUserInGroup();
-    });
-  }
-
-  // Navigate to a screen and refresh group status when returning
-  void _navigateAndRefresh(Widget screen) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => screen),
-    ).then((_) => _refreshGroupStatus());
-  }
+  // ===== build =====
 
   @override
   Widget build(BuildContext context) {
@@ -151,10 +213,15 @@ class HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Screentime Leaderboard'), // TODO: this text is displayed as "Screentime Leaderboa...", fix it
+        title: const Text('Screentime Leaderboard'),
         backgroundColor: const Color.fromARGB(255, 225, 78, 16),
         actions: [
-          IconButton( // I should copy strava and have these buttons on the bottom with their names underneath.
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh',
+            onPressed: _uploadAndRefresh,
+          ),
+          IconButton(
             icon: const Icon(Icons.timer),
             tooltip: 'My Screentime',
             onPressed: () => _navigateAndRefresh(const UserStatsPage()),
@@ -169,18 +236,17 @@ class HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-
-      body: FutureBuilder<bool>(
-        future: _isInGroupFuture,
+      body: FutureBuilder<String?>(
+        future: _groupFuture,
         builder: (context, groupSnapshot) {
           if (groupSnapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          final isInGroup = groupSnapshot.data ?? false;
+          final groupId = groupSnapshot.data;
 
-          // If user is NOT in a group, show join/create options
-          if (!isInGroup) {
+          // Not in a group — show join/create prompt (unchanged)
+          if (groupId == null) {
             return Center(
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
@@ -188,23 +254,17 @@ class HomeScreenState extends State<HomeScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Icon(
-                      Icons.group_off,
-                      size: 80,
-                      color: Colors.grey,
-                    ),
+                    const Icon(Icons.group_off, size: 80, color: Colors.grey),
                     const SizedBox(height: 24),
                     const Text(
                       'Join a group to see the leaderboard!',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
                     ),
                     const SizedBox(height: 32),
                     ElevatedButton.icon(
-                      onPressed: () => _navigateAndRefresh(const SettingsScreen()),
+                      onPressed: () =>
+                          _navigateAndRefresh(const SettingsScreen()),
                       icon: const Icon(Icons.group_add),
                       label: const Text('Join or Create Group'),
                       style: ElevatedButton.styleFrom(
@@ -219,130 +279,121 @@ class HomeScreenState extends State<HomeScreen> {
             );
           }
 
-          // User IS in a group, show leaderboard
-          return StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('leaderboard')
-                .orderBy('totalBadMinutes', descending: true)
-                .snapshots(),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return Center(child: Text('Error: ${snapshot.error}'));
-              }
-
-              if (snapshot.connectionState == ConnectionState.waiting) {
+          // In a group — show leaderboard
+          return FutureBuilder<DocumentSnapshot>(
+            future: _leaderboardFuture,
+            builder: (context, lbSnapshot) {
+              if (lbSnapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               }
+              if (lbSnapshot.hasError) {
+                return Center(child: Text('Error: ${lbSnapshot.error}'));
+              }
 
-              final docs = snapshot.data?.docs ?? [];
-              if (docs.isEmpty) {
+              final data =
+                  lbSnapshot.data?.data() as Map<String, dynamic>?;
+              final entries =
+                  (data?['entries'] as List<dynamic>?) ?? [];
+
+              if (entries.isEmpty) {
                 return const Center(
-                  child: Text('No users yet. Be the first to upload screentime!'),
+                  child: Text(
+                      'No data yet — tap refresh to upload your screentime!'),
                 );
               }
 
               return ListView.builder(
-                itemCount: docs.length,
+                itemCount: entries.length,
                 itemBuilder: (context, index) {
-                  final data = docs[index].data() as Map<String, dynamic>;
-                  final userId = data['uid'];
-                  final totalMinutes = data['totalBadMinutes'] ?? 0;
-                  final isCurrentUser = userId == user?.uid;
-                  final badAppsData = data['badAppsBreakdown'] as List<dynamic>?;
+                  final entry = entries[index] as Map<String, dynamic>;
+                  final uid = entry['uid'];
+                  final username = entry['username'] ?? 'Anonymous';
+                  final totalMinutes = entry['totalBadMinutes'] ?? 0;
+                  final isCurrentUser = uid == user?.uid;
+                  final badAppsData =
+                      entry['badAppsBreakdown'] as List<dynamic>?;
 
-                  // Get/display usernames instead of emails
-                  return FutureBuilder<DocumentSnapshot>(
-                    future: FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(userId)
-                        .get(),
-                    builder: (context, userSnapshot) {
-                      String username = 'Loading...';
-                      if (userSnapshot.hasData && userSnapshot.data!.exists) {
-                        username = userSnapshot.data!.get('username') ?? 'Anonymous';
-                      } else if (userSnapshot.connectionState ==
-                          ConnectionState.done) {
-                        username = 'Anonymous';
-                      }
-
-                      return Card(
-                        margin: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        child: ExpansionTile(
-                          leading: CircleAvatar(
-                            backgroundColor: isCurrentUser
-                                ? Color.fromARGB(255, 225, 78, 16)
-                                : Colors.grey,
-                            child: Text('${index + 1}'),
-                          ),
-                          title: Text(
-                            username,
-                            style: TextStyle(
-                              fontWeight: isCurrentUser
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                            ),
-                          ),
-                          subtitle: Text(
-                              '${totalMinutes.toStringAsFixed(0)} minutes'),
-                          trailing: isCurrentUser
-                              ? const Icon(Icons.person,
-                                  color: Color.fromARGB(255, 225, 78, 16))
-                              : null,
-                          children: [
-                            if (badAppsData != null && badAppsData.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 16, vertical: 8),
-                                      child: Text(
-                                        'App Breakdown:',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14,
-                                          color: Colors.grey.shade700,
-                                        ),
+                  return Card(
+                    margin: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
+                    child: ExpansionTile(
+                      leading: CircleAvatar(
+                        backgroundColor: isCurrentUser
+                            ? const Color.fromARGB(255, 225, 78, 16)
+                            : Colors.grey,
+                        child: Text('${index + 1}'),
+                      ),
+                      title: Text(
+                        username,
+                        style: TextStyle(
+                          fontWeight: isCurrentUser
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                        ),
+                      ),
+                      subtitle: Text(
+                          '${(totalMinutes as num).toStringAsFixed(0)} minutes'),
+                      trailing: isCurrentUser
+                          ? const Icon(Icons.person,
+                              color: Color.fromARGB(255, 225, 78, 16))
+                          : null,
+                      children: [
+                        if (badAppsData != null && badAppsData.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 8),
+                                  child: Text(
+                                    'App Breakdown:',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: Colors.grey.shade700,
+                                    ),
+                                  ),
+                                ),
+                                ...badAppsData.map((app) {
+                                  final appMap =
+                                      app as Map<String, dynamic>;
+                                  final appName =
+                                      appMap['appName'] ?? 'Unknown';
+                                  final minutes = appMap['minutes'] ?? 0;
+                                  return ListTile(
+                                    dense: true,
+                                    leading: Icon(Icons.phone_android,
+                                        size: 20,
+                                        color: Colors.red.shade400),
+                                    title: Text(appName,
+                                        style:
+                                            const TextStyle(fontSize: 14)),
+                                    trailing: Text(
+                                      '${(minutes as num).toStringAsFixed(0)} min',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.grey.shade600,
                                       ),
                                     ),
-                                    ...badAppsData.map((app) {
-                                      final appName = app['appName'] ?? 'Unknown';
-                                      final minutes = app['minutes'] ?? 0;
-                                      return ListTile(
-                                        dense: true,
-                                        leading: Icon(Icons.phone_android,
-                                            size: 20,
-                                            color: Colors.red.shade400),
-                                        title: Text(appName,
-                                            style: const TextStyle(fontSize: 14)),
-                                        trailing: Text(
-                                          '${minutes.toStringAsFixed(0)} min',
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            color: Colors.grey.shade600,
-                                          ),
-                                        ),
-                                      );
-                                    }).toList(),
-                                  ],
-                                ),
-                              )
-                            else
-                              Padding(
-                                padding: const EdgeInsets.all(16.0),
-                                child: Text(
-                                  'No app breakdown available',
-                                  style: TextStyle(
-                                      color: Colors.grey.shade600, fontSize: 13),
-                                ),
-                              ),
-                          ],
-                        ),
-                      );
-                    },
+                                  );
+                                }),
+                              ],
+                            ),
+                          )
+                        else
+                          Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Text(
+                              'No app breakdown available',
+                              style: TextStyle(
+                                  color: Colors.grey.shade600,
+                                  fontSize: 13),
+                            ),
+                          ),
+                      ],
+                    ),
                   );
                 },
               );
