@@ -15,6 +15,16 @@ function getCurrentHourPST() {
   return (utcHour + 24 + PST_OFFSET_HOURS) % 24;
 }
 
+// Returns today's date string in PST as YYYY-MM-DD.
+// Important to use PST here so the history doc date matches
+// what the user would expect to see on their phone.
+function getTodayPST() {
+  const now = new Date();
+  const pstOffset = PST_OFFSET_HOURS * 60 * 60 * 1000;
+  const pstDate = new Date(now.getTime() + pstOffset);
+  return pstDate.toISOString().split('T')[0];
+}
+
 function isRecentlyActive(screentimeData) {
   if (!screentimeData?.lastUpdated) return false;
   const lastUpdated = screentimeData.lastUpdated.toDate();
@@ -22,13 +32,8 @@ function isRecentlyActive(screentimeData) {
   return minutesAgo <= 35;
 }
 
-// Returns the set of app display names that have >= 50% of member votes.
-// If appVotes is missing entirely, all apps are considered active (default on).
-// If a specific app has no entry in appVotes, it is also considered active.
 function getActiveApps(appVotes, totalMembers) {
-  // No vote data at all — everything is active
   if (!appVotes || Object.keys(appVotes).length === 0) return null;
-
   const activeApps = new Set();
   for (const [appName, voters] of Object.entries(appVotes)) {
     if (voters.length > totalMembers / 2) {
@@ -47,6 +52,8 @@ exports.aggregateLeaderboards = onSchedule("every 30 minutes", async (event) => 
     return;
   }
 
+  const today = getTodayPST();
+
   const groupsSnapshot = await db.collection("groups").get();
   if (groupsSnapshot.empty) {
     console.log("No groups found.");
@@ -64,8 +71,6 @@ exports.aggregateLeaderboards = onSchedule("every 30 minutes", async (event) => 
       return;
     }
 
-    // ===== compute active apps from votes =====
-    // null means "no vote data — treat all apps as active"
     const activeApps = getActiveApps(appVotes, memberIds.length);
 
     // ===== fetch all member screentime and user docs in parallel =====
@@ -96,14 +101,10 @@ exports.aggregateLeaderboards = onSchedule("every 30 minutes", async (event) => 
       const st = screentimeDocs[i].data();
       const rawBreakdown = st.badAppsBreakdown ?? [];
 
-      // Filter breakdown to only apps that passed the vote threshold.
-      // If activeApps is null, no filtering — all apps are shown.
       const filteredBreakdown = activeApps === null
         ? rawBreakdown
         : rawBreakdown.filter((item) => activeApps.has(item.appName));
 
-      // Recompute total from the filtered breakdown so the leaderboard
-      // score reflects only the apps the group agreed to track.
       const totalBadMinutes = filteredBreakdown.reduce(
         (sum, item) => sum + (item.minutes ?? 0), 0
       );
@@ -119,6 +120,7 @@ exports.aggregateLeaderboards = onSchedule("every 30 minutes", async (event) => 
 
     entries.sort((a, b) => b.totalBadMinutes - a.totalBadMinutes);
 
+    // ===== write current leaderboard (unchanged) =====
     await db
       .collection("groups")
       .doc(groupId)
@@ -129,7 +131,56 @@ exports.aggregateLeaderboards = onSchedule("every 30 minutes", async (event) => 
         entries,
       });
 
-    console.log(`Updated leaderboard for group ${groupId} (${entries.length} members, ${activeApps?.size ?? 'all'} active apps)`);
+    // ===== write personal daily history for each member =====
+    // Uses set() so repeated runs just overwrite the same day's doc.
+    // This means today's snapshot always reflects the latest upload.
+    await Promise.all(
+      memberIds.map((uid, i) => {
+        if (!screentimeDocs[i].exists) return Promise.resolve();
+        const st = screentimeDocs[i].data();
+
+        // Apply the same vote filtering as the leaderboard so
+        // personal history is consistent with what the group sees.
+        const rawBreakdown = st.badAppsBreakdown ?? [];
+        const filteredBreakdown = activeApps === null
+          ? rawBreakdown
+          : rawBreakdown.filter((item) => activeApps.has(item.appName));
+        const totalBadMinutes = filteredBreakdown.reduce(
+          (sum, item) => sum + (item.minutes ?? 0), 0
+        );
+
+        return db
+          .collection("screentime")
+          .doc(uid)
+          .collection("history")
+          .doc(today)
+          .set({
+            totalBadMinutes,
+            recordedAt: FieldValue.serverTimestamp(),
+          });
+      })
+    );
+
+    // ===== write group average daily history =====
+    // Compute average across members who have screentime data.
+    const membersWithData = entries.filter((e) => e.lastUpdated !== null);
+    if (membersWithData.length > 0) {
+      const averageBadMinutes = membersWithData.reduce(
+        (sum, e) => sum + e.totalBadMinutes, 0
+      ) / membersWithData.length;
+
+      await db
+        .collection("groups")
+        .doc(groupId)
+        .collection("history")
+        .doc(today)
+        .set({
+          averageBadMinutes,
+          recordedAt: FieldValue.serverTimestamp(),
+        });
+    }
+
+    console.log(`Updated leaderboard and history for group ${groupId} (${entries.length} members)`);
   });
 
   await Promise.all(tasks);

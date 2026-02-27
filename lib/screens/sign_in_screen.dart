@@ -31,18 +31,10 @@ class _SignInScreenState extends State<SignInScreen> {
             children: [
               Row(),
               Expanded(
-                //TODO: make this screen look pretty (my app needs a theme)
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Flexible(
-                    //   flex: 1,
-                    //   child: Image.asset(
-                    //     'assets/firebase_logo.png',
-                    //     height: 160,
-                    //   ),
-                    // ),
                     SizedBox(height: 20),
                     Text(
                       'Leaderboard',

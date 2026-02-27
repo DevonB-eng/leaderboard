@@ -11,16 +11,31 @@ dependencies:
   cloud_firestore: ^6.1.2
   firebase_auth: ^6.1.4
   firebase_core: ^4.4.0
+  fl_chart: ^1.1.1
   flutter:
     sdk: flutter
+  google_fonts: ^8.0.2
   google_sign_in: ^7.2.0
   permission_handler: ^12.0.1
   workmanager: ^0.9.0+3
 
 dev_dependencies:
+  flutter_launcher_icons: ^0.14.4  
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
 
 flutter:
   uses-material-design: true
+  assets:
+    - lib/assets/  
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "lib/assets/Gemini_Generated_Image_jhggv1jhggv1jhgg.png"
+  min_sdk_android: 21
+  adaptive_icon_background: "#0C0A1A"
+  adaptive_icon_foreground: "lib/assets/Gemini_Generated_Image_jhggv1jhggv1jhgg.png"
+  web:
+    generate: false
