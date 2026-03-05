@@ -16,7 +16,6 @@ home_screen.dart - the main homepage
 - displays leaderboard if user is in a group, otherwise prompts user to join or create a group
 - has buttons to navigate to settings page, my screentime page, and to sign out
 */
-// TODO: add permissions requests for screen time, notifications, etc.
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -352,13 +351,13 @@ class HomeScreenState extends State<HomeScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('LEADERBOARD', style: AppTextStyles.display(size: 36)),
-              IconButton(
-                icon: const Icon(Icons.refresh,
-                    color: AppColors.textPrimary, size: 22),
-                tooltip: 'Refresh',
-                onPressed: _uploadAndRefresh,
-              ),
+              Text('LEADERBOARD', textAlign: TextAlign.center, style: AppTextStyles.display(size: 36)),
+              // IconButton( //TODO: add in later
+              //   icon: const Icon(Icons.refresh,
+              //       color: AppColors.textPrimary, size: 22),
+              //   tooltip: 'Refresh',
+              //   onPressed: _uploadAndRefresh,
+              // ),
             ],
           ),
         ),
@@ -381,20 +380,20 @@ class HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => Authentication.signOut(context: context),
-                  icon: const Icon(Icons.logout,
-                      size: 16, color: AppColors.textPrimary),
-                  label: Text('SIGN OUT',
-                      style: AppTextStyles.label(color: AppColors.textPrimary)),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                    side: const BorderSide(color: AppColors.primaryLight, width: 1),
-                    shape: const RoundedRectangleBorder(borderRadius: AppBorders.radius),
-                  ),
-                ),
-              ),
+              // Expanded(
+              //   child: OutlinedButton.icon(
+              //     onPressed: () => Authentication.signOut(context: context),
+              //     icon: const Icon(Icons.logout,
+              //         size: 16, color: AppColors.textPrimary),
+              //     label: Text('SIGN OUT',
+              //         style: AppTextStyles.label(color: AppColors.textPrimary)),
+              //     style: OutlinedButton.styleFrom(
+              //       padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+              //       side: const BorderSide(color: AppColors.primaryLight, width: 1),
+              //       shape: const RoundedRectangleBorder(borderRadius: AppBorders.radius),
+              //     ),
+              //   ),
+              // ),
             ],
           ),
         ),
@@ -425,7 +424,7 @@ class HomeScreenState extends State<HomeScreen> {
             ElevatedButton.icon(
               onPressed: () => _navigateAndRefresh(const SettingsScreen()),
               icon: const Icon(Icons.group_add),
-              label: const Text('JOIN OR CREATE GROUP'),
+              label: Text('JOIN OR CREATE GROUP', style: AppTextStyles.label(color: AppColors.primary),),
             ),
           ],
         ),
@@ -644,7 +643,7 @@ class HomeScreenState extends State<HomeScreen> {
                               horizontalInterval: maxY / 4,
                               getDrawingHorizontalLine: (value) => FlLine(
                                 color:
-                                    AppColors.primaryLight.withOpacity(0.3),
+                                    AppColors.primaryLight.withValues(alpha:0.3),
                                 strokeWidth: 1,
                               ),
                             ),

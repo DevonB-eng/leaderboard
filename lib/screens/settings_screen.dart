@@ -237,11 +237,11 @@ class SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   _buildSection('GROUP SETTINGS', isInGroup ? _inGroupOptions() : _notInGroupOptions()),
                   const SizedBox(height: AppSpacing.md),
-                  _buildSection('STATS', _statsContent()),
-                  const SizedBox(height: AppSpacing.md),
+                  // _buildSection('STATS', _statsContent()),
+                  // const SizedBox(height: AppSpacing.md),
                   _buildSection('PERSONAL', _personalContent()),
                   const SizedBox(height: AppSpacing.md),
-                  _buildSection('ABOUT', _aboutContent()),
+                  _buildSection('ABOUT THIS APP', _aboutContent()),
                   const SizedBox(height: AppSpacing.md),
                 ],
               ),
@@ -267,14 +267,14 @@ class SettingsScreenState extends State<SettingsScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('SETTINGS & INFO', style: AppTextStyles.display(size: 30)),
+              Text('SETTINGS & INFO', textAlign: TextAlign.center, style: AppTextStyles.display(size: 30)),
               IconButton(
-                icon: const Icon(Icons.home,
+                icon: const Icon(Icons.timer,
                     color: AppColors.textPrimary, size: 22),
-                tooltip: 'Home',
+                tooltip: 'usagedata',
                 onPressed: () => Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                  MaterialPageRoute(builder: (_) => const UserStatsPage()),
                 ),
               ),
             ],
@@ -287,28 +287,10 @@ class SettingsScreenState extends State<SettingsScreen> {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const UserStatsPage())),
-                  icon: const Icon(Icons.timer,
+                      MaterialPageRoute(builder: (_) => const HomeScreen())),
+                  icon: const Icon(Icons.home,
                       size: 16, color: AppColors.textPrimary),
-                  label: Text('MY SCREENTIME',
-                      style: AppTextStyles.label(color: AppColors.textPrimary)),
-                  style: OutlinedButton.styleFrom(
-                    padding:
-                        const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                    side: const BorderSide(
-                        color: AppColors.primaryLight, width: 1),
-                    shape: const RoundedRectangleBorder(
-                        borderRadius: AppBorders.radius),
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => Authentication.signOut(context: context),
-                  icon: const Icon(Icons.logout,
-                      size: 16, color: AppColors.textPrimary),
-                  label: Text('SIGN OUT',
+                  label: Text('HOME SCREEN',
                       style: AppTextStyles.label(color: AppColors.textPrimary)),
                   style: OutlinedButton.styleFrom(
                     padding:
@@ -369,13 +351,14 @@ class SettingsScreenState extends State<SettingsScreen> {
           ElevatedButton.icon(
             onPressed: joinGroup,
             icon: const Icon(Icons.group_add, size: 16),
-            label: Text('JOIN GROUP', style: AppTextStyles.label(color: AppColors.textPrimary)),
+            label: Text('JOIN GROUP', 
+            style: AppTextStyles.label(color: AppColors.primary)),
           ),
           const SizedBox(height: AppSpacing.sm),
           ElevatedButton.icon(
             onPressed: createGroup,
             icon: const Icon(Icons.add, size: 16),
-            label: Text('CREATE GROUP', style: AppTextStyles.label(color: AppColors.textPrimary)),
+            label: Text('CREATE GROUP', style: AppTextStyles.label(color: AppColors.primary)),
           ),
         ],
       ),
@@ -467,8 +450,8 @@ class SettingsScreenState extends State<SettingsScreen> {
                 return Row(
                   children: [
                     const SizedBox(width: AppSpacing.md),
-                    const Icon(Icons.block,
-                        size: 14, color: AppColors.error),
+                    // const Icon(Icons.block,
+                    //     size: 14, color: AppColors.error),
                     const SizedBox(width: AppSpacing.sm),
                     Expanded(
                       child: Text(appName,
@@ -495,7 +478,7 @@ class SettingsScreenState extends State<SettingsScreen> {
             ],
           ),
 
-          const SizedBox(height: AppSpacing.md),
+          const SizedBox(height: AppSpacing.sm),
 
           // Leave group
           OutlinedButton.icon(
@@ -505,7 +488,7 @@ class SettingsScreenState extends State<SettingsScreen> {
             label: Text('LEAVE GROUP',
                 style: AppTextStyles.label(color: AppColors.error)),
             style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: AppColors.error, width: 1),
+              side: const BorderSide(color: AppColors.primaryLight, width: 1),
               shape: const RoundedRectangleBorder(
                   borderRadius: AppBorders.radius),
               padding:
@@ -544,187 +527,45 @@ class SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // ===== stats content =====
+  // ===== personal settings content =====
 
-  Widget _statsContent() {
-    final dates = List.generate(7, (i) {
-      final day = DateTime.now().subtract(Duration(days: 6 - i));
-      return '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
-    });
-    final dayLabels = dates.map((date) {
-      final d = DateTime.parse(date);
-      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-      return days[d.weekday - 1];
-    }).toList();
-    final allValues = [
-      ..._personalHistory.values,
-      ..._groupHistory.values,
-    ];
-    final maxY = allValues.isEmpty
-        ? 100.0
-        : (allValues.reduce((a, b) => a > b ? a : b) * 1.2)
-            .clamp(10.0, double.infinity);
-
-    return Theme(
-      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-      child: ExpansionTile(
-        leading: const Icon(Icons.bar_chart,
-            color: AppColors.primaryLight, size: 18),
-        title: Text('WEEKLY CHART', style: AppTextStyles.body()),
-        subtitle: Text('Personal vs group average',
-            style: AppTextStyles.label(color: AppColors.textSecondary)),
-        iconColor: AppColors.primaryBright,
-        collapsedIconColor: AppColors.primaryLight,
-        onExpansionChanged: (expanded) {
-          if (expanded && !_statsLoaded) _fetchStatsHistory();
-        },
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-                AppSpacing.md, AppSpacing.sm, AppSpacing.md, AppSpacing.md),
-            child: _loadingStats
-                ? const SizedBox(
-                    height: 200,
-                    child: Center(child: CircularProgressIndicator()),
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Legend
-                      Row(
-                        children: [
-                          Container(
-                              width: 12,
-                              height: 12,
-                              color: AppColors.primaryBright),
-                          const SizedBox(width: AppSpacing.xs),
-                          Text('You', style: AppTextStyles.label()),
-                          const SizedBox(width: AppSpacing.md),
-                          Container(
-                              width: 12,
-                              height: 12,
-                              color: AppColors.textMuted),
-                          const SizedBox(width: AppSpacing.xs),
-                          Text('Group Avg', style: AppTextStyles.label()),
-                        ],
-                      ),
-                      const SizedBox(height: AppSpacing.sm),
-                      // Chart
-                      SizedBox(
-                        height: 220,
-                        child: BarChart(
-                          BarChartData(
-                            maxY: maxY,
-                            barTouchData: BarTouchData(
-                              touchTooltipData: BarTouchTooltipData(
-                                getTooltipItem: (group, groupIndex, rod,
-                                    rodIndex) {
-                                  final label =
-                                      rodIndex == 0 ? 'You' : 'Group Avg';
-                                  return BarTooltipItem(
-                                    '$label\n${rod.toY.toStringAsFixed(0)} min',
-                                    AppTextStyles.label(
-                                        color: AppColors.textPrimary),
-                                  );
-                                },
-                              ),
-                            ),
-                            titlesData: FlTitlesData(
-                              bottomTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  getTitlesWidget: (value, meta) {
-                                    final i = value.toInt();
-                                    if (i < 0 || i >= dayLabels.length) {
-                                      return const SizedBox.shrink();
-                                    }
-                                    return Padding(
-                                      padding:
-                                          const EdgeInsets.only(top: 6),
-                                      child: Text(dayLabels[i],
-                                          style: AppTextStyles.label()),
-                                    );
-                                  },
-                                  reservedSize: 28,
-                                ),
-                              ),
-                              leftTitles: AxisTitles(
-                                sideTitles: SideTitles(
-                                  showTitles: true,
-                                  reservedSize: 40,
-                                  getTitlesWidget: (value, meta) => Text(
-                                    '${value.toInt()}m',
-                                    style: AppTextStyles.label(
-                                        color: AppColors.textMuted),
-                                  ),
-                                ),
-                              ),
-                              topTitles: const AxisTitles(
-                                  sideTitles:
-                                      SideTitles(showTitles: false)),
-                              rightTitles: const AxisTitles(
-                                  sideTitles:
-                                      SideTitles(showTitles: false)),
-                            ),
-                            gridData: FlGridData(
-                              drawVerticalLine: false,
-                              horizontalInterval: maxY / 4,
-                              getDrawingHorizontalLine: (value) => FlLine(
-                                color: AppColors.primaryLight
-                                    .withOpacity(0.3),
-                                strokeWidth: 1,
-                              ),
-                            ),
-                            borderData: FlBorderData(show: false),
-                            barGroups:
-                                List.generate(dates.length, (i) {
-                              final date = dates[i];
-                              final personal =
-                                  _personalHistory[date] ?? 0;
-                              final group = _groupHistory[date] ?? 0;
-                              return BarChartGroupData(
-                                x: i,
-                                barRods: [
-                                  BarChartRodData(
-                                    toY: personal,
-                                    color: AppColors.primaryBright,
-                                    width: 10,
-                                    borderRadius:
-                                        const BorderRadius.vertical(
-                                            top: Radius.circular(3)),
-                                  ),
-                                  BarChartRodData(
-                                    toY: group,
-                                    color: AppColors.textMuted,
-                                    width: 10,
-                                    borderRadius:
-                                        const BorderRadius.vertical(
-                                            top: Radius.circular(3)),
-                                  ),
-                                ],
-                              );
-                            }),
-                          ),
-                        ),
-                      ),
-                      if (allValues.every((v) => v == 0))
-                        Padding(
-                          padding: const EdgeInsets.only(top: AppSpacing.sm),
-                          child: Text(
-                            'No history yet — check back after your first full day.',
-                            style: AppTextStyles.label(
-                                color: AppColors.textMuted),
-                          ),
-                        ),
-                    ],
-                  ),
+  void signOut() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: AppBorders.radius,
+          side: AppBorders.thin,
+        ),
+        title: Text('SIGN OUT', style: AppTextStyles.heading()),
+        content: Text(
+          'Are you sure you want to sign out?',
+          style: AppTextStyles.body(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text('NO', style: AppTextStyles.body(color: AppColors.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: AppColors.textPrimary,
+            ),
+            child: Text('YES', style: AppTextStyles.body()),
           ),
         ],
       ),
     );
+    if (confirmed == true && mounted) {
+      await Authentication.signOut(context: context);
+      if (mounted) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    }
   }
-
-  // ===== personal settings content =====
 
   Widget _personalContent() {
     final user = FirebaseAuth.instance.currentUser;
@@ -770,6 +611,26 @@ class SettingsScreenState extends State<SettingsScreen> {
               ),
             ],
           ),
+
+          const SizedBox(height: AppSpacing.sm),
+
+          // Sign out
+          OutlinedButton.icon(
+            onPressed: signOut,
+            icon: const Icon(Icons.logout,
+                size: 16, color: AppColors.error),
+            label: Text('SIGN OUT',
+                style: AppTextStyles.label(color: AppColors.error)),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 0), // add this
+              side: const BorderSide(color: AppColors.primaryLight, width: 1),
+              shape: const RoundedRectangleBorder(
+                  borderRadius: AppBorders.radius),
+              padding:
+                  const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            ),
+          ),
+
         ],
       ),
     );
@@ -798,66 +659,68 @@ class SettingsScreenState extends State<SettingsScreen> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: AppBorders.radius,
+            side: AppBorders.thin,
+          ),
           title: Text('JOIN GROUP', style: AppTextStyles.heading()),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: searchController,
-                style: AppTextStyles.body(),
-                decoration: const InputDecoration(
-                  labelText: 'Search for groups',
-                  prefixIcon: Icon(Icons.search),
-                ),
-                onChanged: (value) async {
-                  if (value.isNotEmpty) {
-                    try {
-                      final results = await FirebaseFirestore.instance
-                          .collection('groups')
-                          .where('name', isGreaterThanOrEqualTo: value)
-                          .where('name', isLessThanOrEqualTo: '$value\uf8ff')
-                          .get();
-                      setDialogState(() => searchResults = results.docs);
-                    } catch (e) {
-                      await Authentication.showErrorDialog(
-                          context: dialogContext,
-                          message: 'Error searching for groups: $e');
+          content: SizedBox(
+            width: double.maxFinite,  // AlertDialog reads this and skips IntrinsicWidth measurement
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: searchController,
+                  style: AppTextStyles.body(),
+                  decoration: const InputDecoration(labelText: 'Search for groups', prefixIcon: Icon(Icons.search)),
+                  onChanged: (value) async {
+                    if (value.isNotEmpty) {
+                      try {
+                        final results = await FirebaseFirestore.instance
+                            .collection('groups')
+                            .where('name', isGreaterThanOrEqualTo: value)
+                            .where('name', isLessThanOrEqualTo: '$value\uf8ff')
+                            .get();
+                        setDialogState(() => searchResults = results.docs);
+                      } catch (e) {
+                        await Authentication.showErrorDialog(
+                            context: dialogContext,
+                            message: 'Error searching for groups: $e');
+                      }
+                    } else {
+                      setDialogState(() => searchResults = []);
                     }
-                  } else {
-                    setDialogState(() => searchResults = []);
-                  }
-                },
-              ),
-              const SizedBox(height: AppSpacing.md),
-              SizedBox(
-                height: 200,
-                child: searchResults.isEmpty
-                    ? Center(
-                        child: Text('Search for a group',
-                            style: AppTextStyles.body(
-                                color: AppColors.textSecondary)))
-                    : ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: searchResults.length,
-                        itemBuilder: (context, index) {
-                          final group = searchResults[index];
-                          return ListTile(
-                            leading: const Icon(Icons.group),
-                            title: Text(group['name'],
-                                style: AppTextStyles.body()),
-                            subtitle: Text(
-                                '${group['memberIds'].length} members',
-                                style: AppTextStyles.label()),
-                            onTap: () {
-                              Navigator.pop(dialogContext);
-                              showPasswordDialog(
-                                  scaffoldContext, group.id, group['name']);
-                            },
-                          );
+                  },
+                ),
+                const SizedBox(height: AppSpacing.md),
+                SizedBox(
+                  height: 200,
+                  child: searchResults.isEmpty
+                  ? Center(child: Text('Search for a group', 
+                  style: AppTextStyles.body(color: AppColors.textSecondary),))
+                  : ListView.builder(
+                    itemCount: searchResults.length,
+                    itemBuilder: (context, index) {
+                      final group = searchResults[index];
+                      return ListTile(
+                        leading: const Icon(Icons.group),
+                        title: Text(group['name'],
+                            style: AppTextStyles.body()),
+                        subtitle: Text(
+                            '${group['memberIds'].length} members',
+                            style: AppTextStyles.label()),
+                        onTap: () {
+                          Navigator.pop(dialogContext);
+                          showPasswordDialog(
+                              scaffoldContext, group.id, group['name']);
                         },
-                      ),
-              ),
-            ],
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
           actions: [
             TextButton(
@@ -876,12 +739,14 @@ class SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: scaffoldContext,
       builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: AppBorders.radius, side: AppBorders.thin),
         title: Text('JOIN $groupName', style: AppTextStyles.heading()),
         content: TextField(
           controller: passwordController,
           style: AppTextStyles.body(),
-          decoration: const InputDecoration(
-            labelText: 'Enter group password',
+          decoration: InputDecoration(
+            labelText: 'Enter group password', hintStyle: AppTextStyles.label(color: AppColors.textSecondary),
             prefixIcon: Icon(Icons.lock),
           ),
           obscureText: true,
@@ -941,6 +806,7 @@ class SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.surface,
         title: Text('CREATE GROUP', style: AppTextStyles.heading()),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1022,13 +888,18 @@ class SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: AppBorders.radius,
+          side: AppBorders.thin,
+        ),
         title: Text('LEAVE GROUP', style: AppTextStyles.heading()),
         content: Text('Are you sure you want to leave this group?',
-            style: AppTextStyles.body()),
+            style: AppTextStyles.body(color: AppColors.textSecondary)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
+            child: Text('NO', style: AppTextStyles.body(color: AppColors.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -1060,11 +931,11 @@ class SettingsScreenState extends State<SettingsScreen> {
                     message: 'Error leaving group: $e');
               }
             },
-            style: ElevatedButton.styleFrom(
+              style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,
               foregroundColor: AppColors.textPrimary,
             ),
-            child: const Text('Leave'),
+            child: Text('YES', style: AppTextStyles.body()),
           ),
         ],
       ),

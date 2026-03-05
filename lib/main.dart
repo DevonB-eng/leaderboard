@@ -25,7 +25,7 @@ Future<void> main() async {
   // remember to set this to false before releasing.
   await Workmanager().initialize(
     callbackDispatcher,
-    isInDebugMode: true,
+    // isInDebugMode: true,
   );
 
   // Register the periodic background sync task.

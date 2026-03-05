@@ -9,7 +9,6 @@ design.dart - global design system for the leaderboard app
 */
 
 // ===== colors =====
-
 class AppColors {
   AppColors._(); // prevent instantiation
 
@@ -34,7 +33,6 @@ class AppColors {
 }
 
 // ===== typography =====
-
 class AppTextStyles {
   AppTextStyles._();
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'package:leaderboard/res/custom_colors.dart';
+import 'package:leaderboard/assets/design.dart';
 import 'package:leaderboard/utils/authentication.dart';
 import 'package:leaderboard/widgets/email_sign_in_button.dart';
 
@@ -18,66 +18,99 @@ class _SignInScreenState extends State<SignInScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: CustomColors.firebaseNavy,
+      backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.only(
-            left: 16.0,
-            right: 16.0,
-            bottom: 20.0,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.max,
-            children: [
-              Row(),
-              Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+
+            // ===== header banner (mirrors home_screen _buildHeader) =====
+            Container(
+              color: AppColors.primary,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              child: Text('LEADERBOARD', textAlign: TextAlign.center, style: AppTextStyles.display(size: 36),
+              ),
+            ),
+
+            // ===== body =====
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
                   mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    SizedBox(height: 20),
-                    Text(
-                      'Leaderboard',
-                      style: TextStyle(
-                        color: CustomColors.firebaseYellow,
-                        fontSize: 40,
+
+                    // ===== title card =====
+                    Container(
+                      decoration: BoxDecoration(
+                        border: AppBorders.box,
+                        borderRadius: AppBorders.radius,
+                        color: AppColors.surface,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppSpacing.md,
+                              vertical: AppSpacing.sm,
+                            ),
+                            decoration: const BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.vertical(
+                                  top: Radius.circular(4)),
+                            ),
+                            child: Text(
+                              'SIGN IN',
+                              style: AppTextStyles.heading(size: 14),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(AppSpacing.lg),
+                            child: Text(
+                              'Track your screen time.\nCompete with your friends.',
+                              textAlign: TextAlign.center,
+                              style: AppTextStyles.body(
+                                  color: AppColors.textSecondary),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    Text(
-                      'Sign In',
-                      style: TextStyle(
-                        color: CustomColors.firebaseOrange,
-                        fontSize: 40,
-                      ),
+
+                    const SizedBox(height: AppSpacing.xl),
+
+                    // ===== sign in button / loading =====
+                    FutureBuilder(
+                      future:
+                          Authentication.initializeFirebase(context: context),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasError) {
+                          return Text(
+                            'Error initializing Firebase',
+                            style: AppTextStyles.body(color: AppColors.error),
+                            textAlign: TextAlign.center,
+                          );
+                        } else if (snapshot.connectionState ==
+                            ConnectionState.done) {
+                          return EmailSignInButton();
+                        }
+                        return const Center(
+                          child: CircularProgressIndicator(),
+                        );
+                      },
                     ),
                   ],
                 ),
               ),
-              FutureBuilder(
-                future: Authentication.initializeFirebase(context: context),
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return Text('Error initializing Firebase');
-                  } else if (snapshot.connectionState == ConnectionState.done) {
-                    return Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        EmailSignInButton() // the holy sign in button. I can add more here later
-                      ],
-                    );
-                  }
-                  return CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(
-                      CustomColors.firebaseOrange,
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
-

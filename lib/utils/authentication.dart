@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
+import 'package:leaderboard/assets/design.dart';
+
 /*
 authentication.dart - handles signing in and whatnot
 - sign up with email and password (also adds user to users collection in firestore)
@@ -21,18 +23,16 @@ class Authentication {
       barrierDismissible: true,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          backgroundColor: Colors.black,
-          title: Text(
-            'Error',
-            style: TextStyle(color: Colors.redAccent),
+          backgroundColor: AppColors.surfaceRaised,
+          shape: RoundedRectangleBorder(
+            borderRadius: AppBorders.radius,
+            side: const BorderSide(color: AppColors.error, width: 1.0),
           ),
-          content: Text(
-            message,
-            style: TextStyle(color: Colors.white, letterSpacing: 0.5),
-          ),
+          title: Text('ERROR', style: AppTextStyles.heading(color: AppColors.error)),
+          content: Text(message, style: AppTextStyles.body()),
           actions: [
             TextButton(
-              child: Text('OK', style: TextStyle(color: Colors.redAccent)),
+              child: Text('OK', style: AppTextStyles.body(color: AppColors.error)),
               onPressed: () => Navigator.of(dialogContext).pop(),
             ),
           ],
@@ -73,8 +73,6 @@ class Authentication {
 
       return credential.user;
     } on FirebaseAuthException catch (e) {
-      // TODO: formatting of error code should be updated to fit the app when I do my graphic design shit
-      // showErrorDialog is a custom function that I update pretty easily
       if (e.code == 'weak-password') {
         await showErrorDialog(context: context, message: 'The password provided is too weak (must be at least 6 characters).'); 
       } else if (e.code == 'email-already-in-use') {
