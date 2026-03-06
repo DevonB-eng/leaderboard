@@ -90,7 +90,7 @@ class ScreenTimeService {
       'totalBadMinutes': totalBadMinutes,
       'badAppsBreakdown': badAppsBreakdown,
       'lastUpdated': FieldValue.serverTimestamp(),
-      'username': user.email,
+      //'username': user.email,
     });
   }
 }

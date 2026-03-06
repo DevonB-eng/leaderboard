@@ -1,5 +1,9 @@
 const { setGlobalOptions } = require("firebase-functions");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const bcryptjs = require("bcryptjs");
+
+const SALT_ROUNDS = 10;
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
 const admin = require("firebase-admin");
 
@@ -184,4 +188,134 @@ exports.aggregateLeaderboards = onSchedule("every 30 minutes", async (event) => 
   });
 
   await Promise.all(tasks);
+});
+// ===== createGroup =====
+// Callable function — hashes the password server-side before writing to Firestore.
+// The plaintext password never touches the database.
+exports.createGroup = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Must be signed in to create a group.");
+  }
+
+  const { name, nameLower, password } = request.data;
+  if (!name || !nameLower || !password) {
+    throw new HttpsError("invalid-argument", "name, nameLower, and password are required.");
+  }
+
+  // Check for duplicate name (case-insensitive)
+  const existing = await db.collection("groups")
+    .where("nameLower", "==", nameLower)
+    .limit(1)
+    .get();
+  if (!existing.empty) {
+    throw new HttpsError("already-exists", "A group with that name already exists.");
+  }
+
+  const passwordHash = await bcryptjs.hash(password, SALT_ROUNDS);
+  const userId = request.auth.uid;
+  const groupRef = db.collection("groups").doc();
+
+  await groupRef.set({
+    name,
+    nameLower,
+    passwordHash,
+    memberIds: [userId],
+    createdAt: FieldValue.serverTimestamp(),
+    createdBy: userId,
+  });
+
+  await db.collection("users").doc(userId).set(
+    { groupId: groupRef.id },
+    { merge: true }
+  );
+
+  return { groupId: groupRef.id };
+});
+
+// ===== joinGroup =====
+// Callable function — compares the entered password against the stored hash server-side.
+// The hash never leaves the server.
+exports.joinGroup = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Must be signed in to join a group.");
+  }
+
+  const { groupId, password } = request.data;
+  if (!groupId || !password) {
+    throw new HttpsError("invalid-argument", "groupId and password are required.");
+  }
+
+  const groupDoc = await db.collection("groups").doc(groupId).get();
+  if (!groupDoc.exists) {
+    throw new HttpsError("not-found", "Group not found.");
+  }
+
+  const groupData = groupDoc.data();
+  const passwordHash = groupData.passwordHash;
+  if (!passwordHash) {
+    throw new HttpsError("failed-precondition", "Group has no password set.");
+  }
+
+  const match = await bcryptjs.compare(password, passwordHash);
+  if (!match) {
+    throw new HttpsError("permission-denied", "Incorrect password.");
+  }
+
+  const userId = request.auth.uid;
+  await db.collection("groups").doc(groupId).update({
+    memberIds: FieldValue.arrayUnion(userId),
+  });
+  await db.collection("users").doc(userId).set(
+    { groupId },
+    { merge: true }
+  );
+
+  // Return the group data so Flutter can populate state immediately
+  // without needing a second round-trip fetch.
+  return {
+    groupId,
+    groupName: groupData.name,
+    memberIds: [...(groupData.memberIds ?? []), userId],
+    appVotes: groupData.appVotes ?? {},
+  };
+});
+// ===== leaveGroup =====
+// Callable function — removes the user from the group and deletes the group
+// document entirely if they were the last member.
+exports.leaveGroup = onCall({ invoker: "public" }, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Must be signed in to leave a group.");
+  }
+
+  const { groupId } = request.data;
+  if (!groupId) {
+    throw new HttpsError("invalid-argument", "groupId is required.");
+  }
+
+  const userId = request.auth.uid;
+  const groupRef = db.collection("groups").doc(groupId);
+  const userRef = db.collection("users").doc(userId);
+
+  const groupDoc = await groupRef.get();
+  if (!groupDoc.exists) {
+    throw new HttpsError("not-found", "Group not found.");
+  }
+
+  const memberIds = groupDoc.data().memberIds ?? [];
+  const remainingMembers = memberIds.filter((id) => id !== userId);
+
+  if (remainingMembers.length === 0) {
+    // Last member leaving — delete the group document entirely
+    await groupRef.delete();
+  } else {
+    // Others remain — just remove this user from memberIds
+    await groupRef.update({
+      memberIds: FieldValue.arrayRemove(userId),
+    });
+  }
+
+  // Remove groupId from the user's own document either way
+  await userRef.update({ groupId: FieldValue.delete() });
+
+  return { deleted: remainingMembers.length === 0 };
 });

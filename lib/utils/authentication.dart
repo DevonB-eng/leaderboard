@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:leaderboard/assets/design.dart';
@@ -41,13 +40,6 @@ class Authentication {
     );
   }
 
-  static Future<FirebaseApp> initializeFirebase({
-    required BuildContext context,
-  }) async {
-    FirebaseApp firebaseApp = await Firebase.initializeApp();
-    return firebaseApp;
-  }
-
   static Future<User?> signUpwithEmailAndPassword({
     required BuildContext context,
     required String username,
@@ -61,6 +53,7 @@ class Authentication {
       );
 
       if (credential.user != null) {
+        await credential.user!.updateDisplayName(username);
         await FirebaseFirestore.instance
             .collection('users')
             .doc(credential.user!.uid)

@@ -81,29 +81,8 @@ class _SignInScreenState extends State<SignInScreen> {
                         ],
                       ),
                     ),
-
                     const SizedBox(height: AppSpacing.xl),
-
-                    // ===== sign in button / loading =====
-                    FutureBuilder(
-                      future:
-                          Authentication.initializeFirebase(context: context),
-                      builder: (context, snapshot) {
-                        if (snapshot.hasError) {
-                          return Text(
-                            'Error initializing Firebase',
-                            style: AppTextStyles.body(color: AppColors.error),
-                            textAlign: TextAlign.center,
-                          );
-                        } else if (snapshot.connectionState ==
-                            ConnectionState.done) {
-                          return EmailSignInButton();
-                        }
-                        return const Center(
-                          child: CircularProgressIndicator(),
-                        );
-                      },
-                    ),
+                    EmailSignInButton(),
                   ],
                 ),
               ),

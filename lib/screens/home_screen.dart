@@ -249,7 +249,7 @@ class HomeScreenState extends State<HomeScreen> {
               onConfirm();
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color.fromARGB(255, 225, 78, 16),
+              backgroundColor: AppColors.primaryBright,
               foregroundColor: Colors.white,
             ),
             child: Text(confirmLabel),
@@ -314,14 +314,13 @@ class HomeScreenState extends State<HomeScreen> {
                       if (entries.isEmpty) {
                         return Center(
                           child: Text(
-                            'No data yet — tap refresh to upload your screentime!',
+                            'No data yet — tap refresh to upload your screentime!', //TODO: update this text as there will be no update button on final version
                             style: AppTextStyles.body(
                                 color: AppColors.textSecondary),
                             textAlign: TextAlign.center,
                           ),
                         );
                       }
-
                       return _buildLeaderboard(entries, user);
                     },
                   );
@@ -352,12 +351,12 @@ class HomeScreenState extends State<HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text('LEADERBOARD', textAlign: TextAlign.center, style: AppTextStyles.display()),
-              // IconButton( //TODO: testing button
-              //   icon: const Icon(Icons.refresh,
-              //       color: AppColors.textPrimary, size: 22),
-              //   tooltip: 'Refresh',
-              //   onPressed: _uploadAndRefresh,
-              // ),
+              IconButton( //TODO: testing button
+                icon: const Icon(Icons.refresh,
+                    color: AppColors.textPrimary, size: 22),
+                tooltip: 'Refresh',
+                onPressed: _uploadAndRefresh,
+              ),
             ],
           ),
         ),
