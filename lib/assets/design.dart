@@ -38,7 +38,7 @@ class AppTextStyles {
 
   // VT323 — retro pixel display font, used for large hero text only
   // e.g. "LEADERBOARD", rank numbers, big stats
-  static TextStyle display({double size = 48, Color color = AppColors.textPrimary}) {
+  static TextStyle display({double size = 36, Color color = AppColors.textPrimary}) {
     return GoogleFonts.vt323(
       fontSize: size,
       color: color,
@@ -72,7 +72,7 @@ class AppTextStyles {
     );
   }
 
-  static TextStyle mono({double size = 13, Color color = AppColors.textPrimary}) {
+  static TextStyle mono({double size = 13, Color color = AppColors.textSecondary}) {
     return GoogleFonts.shareTechMono(
       fontSize: size,
       color: color,

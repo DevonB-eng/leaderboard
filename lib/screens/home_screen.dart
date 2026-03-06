@@ -349,10 +349,10 @@ class HomeScreenState extends State<HomeScreen> {
             vertical: AppSpacing.sm,
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text('LEADERBOARD', textAlign: TextAlign.center, style: AppTextStyles.display(size: 36)),
-              // IconButton( //TODO: add in later
+              Text('LEADERBOARD', textAlign: TextAlign.center, style: AppTextStyles.display()),
+              // IconButton( //TODO: testing button
               //   icon: const Icon(Icons.refresh,
               //       color: AppColors.textPrimary, size: 22),
               //   tooltip: 'Refresh',
@@ -371,7 +371,7 @@ class HomeScreenState extends State<HomeScreen> {
                   icon: const Icon(Icons.settings,
                       size: 16, color: AppColors.textPrimary),
                   label: Text('SETTINGS & INFO',
-                      style: AppTextStyles.label(color: AppColors.textPrimary)),
+                      style: AppTextStyles.body()),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
                     side: const BorderSide(color: AppColors.primaryLight, width: 1),
@@ -420,11 +420,20 @@ class HomeScreenState extends State<HomeScreen> {
               textAlign: TextAlign.center,
               style: AppTextStyles.body(color: AppColors.textSecondary),
             ),
-            const SizedBox(height: AppSpacing.xl),
+            const SizedBox(height: AppSpacing.md),
             ElevatedButton.icon(
               onPressed: () => _navigateAndRefresh(const SettingsScreen()),
               icon: const Icon(Icons.group_add),
-              label: Text('JOIN OR CREATE GROUP', style: AppTextStyles.label(color: AppColors.primary),),
+              label: Text('JOIN OR CREATE GROUP', style: AppTextStyles.label(color: AppColors.textPrimary)),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 0), // add this
+                side: const BorderSide(color: AppColors.primaryLight, width: 1),
+                backgroundColor: AppColors.surface,
+                shape: const RoundedRectangleBorder(
+                    borderRadius: AppBorders.radius),
+                padding:
+                    const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            ),
             ),
           ],
         ),
@@ -461,7 +470,7 @@ class HomeScreenState extends State<HomeScreen> {
                     borderRadius: BorderRadius.vertical(top: Radius.circular(4)),
                   ),
                   child: Text('GROUP LEADERBOARD',
-                      style: AppTextStyles.heading(size: 14)),
+                      style: AppTextStyles.heading()),
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(
@@ -548,7 +557,7 @@ class HomeScreenState extends State<HomeScreen> {
               borderRadius: BorderRadius.vertical(top: Radius.circular(4)),
             ),
             child: Text('WEEKLY SCREENTIME',
-                style: AppTextStyles.heading(size: 14)),
+                style: AppTextStyles.heading()),
           ),
 
           Padding(
@@ -749,7 +758,7 @@ class HomeScreenState extends State<HomeScreen> {
                   BorderRadius.vertical(top: Radius.circular(4)),
             ),
             child: Text('TODAY\'S STATS',
-                style: AppTextStyles.heading(size: 14)),
+                style: AppTextStyles.heading()),
           ),
 
           // You row

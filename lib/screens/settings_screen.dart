@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'package:leaderboard/screens/user_stats_screen.dart';
 
 import 'package:leaderboard/utils/authentication.dart';
 import 'package:leaderboard/utils/screen_time.dart';
 import 'package:leaderboard/screens/home_screen.dart';
 import 'package:leaderboard/assets/design.dart';
+
+/*
+settings_screen.dart - the settings page for the app
+- group settings (join/create/leave group, view members, vote on bad apps)
+- personal settings (view email/username, sign out)
+- about section with info about the app and the developer
+*/
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -28,22 +34,15 @@ class SettingsScreenState extends State<SettingsScreen> {
   Map<String, List<String>> _appVotes = {};
 
   final List<String> _badAppDisplayNames = ScreenTimeService.badApps.values
-      .toSet()
-      .toList()
+    .toSet()
+    .toList()
     ..sort();
-
-  Map<String, double> _personalHistory = {};
-  Map<String, double> _groupHistory = {};
-  bool _loadingStats = false;
-  bool _statsLoaded = false;
 
   @override
   void initState() {
     super.initState();
     checkUserGroupStatus();
   }
-
-  // ===== all logic unchanged =====
 
   Future<void> checkUserGroupStatus() async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
@@ -99,56 +98,6 @@ class SettingsScreenState extends State<SettingsScreen> {
       debugPrint('Error fetching member usernames: $e');
     } finally {
       setState(() => _loadingMembers = false);
-    }
-  }
-
-  Future<void> _fetchStatsHistory() async {
-    if (_statsLoaded || currentGroupId == null) return;
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-    setState(() => _loadingStats = true);
-    try {
-      final dates = List.generate(7, (i) {
-        final day = DateTime.now().subtract(Duration(days: 6 - i));
-        return '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
-      });
-      final results = await Future.wait([
-        Future.wait(dates.map((date) => FirebaseFirestore.instance
-            .collection('screentime')
-            .doc(uid)
-            .collection('history')
-            .doc(date)
-            .get())),
-        Future.wait(dates.map((date) => FirebaseFirestore.instance
-            .collection('groups')
-            .doc(currentGroupId)
-            .collection('history')
-            .doc(date)
-            .get())),
-      ]);
-      final personalDocs = results[0];
-      final groupDocs = results[1];
-      final personal = <String, double>{};
-      final group = <String, double>{};
-      for (int i = 0; i < dates.length; i++) {
-        personal[dates[i]] = personalDocs[i].exists
-            ? ((personalDocs[i].data()?['totalBadMinutes'] ?? 0) as num)
-                .toDouble()
-            : 0;
-        group[dates[i]] = groupDocs[i].exists
-            ? ((groupDocs[i].data()?['averageBadMinutes'] ?? 0) as num)
-                .toDouble()
-            : 0;
-      }
-      setState(() {
-        _personalHistory = personal;
-        _groupHistory = group;
-        _statsLoaded = true;
-      });
-    } catch (e) {
-      debugPrint('Error fetching stats history: $e');
-    } finally {
-      setState(() => _loadingStats = false);
     }
   }
 
@@ -217,7 +166,6 @@ class SettingsScreenState extends State<SettingsScreen> {
   }
 
   // ===== build =====
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -252,8 +200,6 @@ class SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // ===== header =====
-
   Widget _buildHeader() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -265,18 +211,18 @@ class SettingsScreenState extends State<SettingsScreen> {
             vertical: AppSpacing.sm,
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text('SETTINGS & INFO', textAlign: TextAlign.center, style: AppTextStyles.display(size: 30)),
-              IconButton(
-                icon: const Icon(Icons.timer,
-                    color: AppColors.textPrimary, size: 22),
-                tooltip: 'usagedata',
-                onPressed: () => Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const UserStatsPage()),
-                ),
-              ),
+              Text('SETTINGS & INFO', textAlign: TextAlign.center, style: AppTextStyles.display()),
+              // IconButton( //TODO: testing button
+              //   icon: const Icon(Icons.timer,
+              //       color: AppColors.textPrimary, size: 22),
+              //   tooltip: 'usagedata',
+              //   onPressed: () => Navigator.pushReplacement(
+              //     context,
+              //     MaterialPageRoute(builder: (_) => const UserStatsPage()),
+              //   ),
+              // ),
             ],
           ),
         ),
@@ -291,12 +237,11 @@ class SettingsScreenState extends State<SettingsScreen> {
                   icon: const Icon(Icons.home,
                       size: 16, color: AppColors.textPrimary),
                   label: Text('HOME SCREEN',
-                      style: AppTextStyles.label(color: AppColors.textPrimary)),
+                      style: AppTextStyles.body()),
                   style: OutlinedButton.styleFrom(
                     padding:
                         const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                    side: const BorderSide(
-                        color: AppColors.primaryLight, width: 1),
+                    side: const BorderSide(color: AppColors.primaryLight, width: 1),
                     shape: const RoundedRectangleBorder(
                         borderRadius: AppBorders.radius),
                   ),
@@ -308,10 +253,6 @@ class SettingsScreenState extends State<SettingsScreen> {
       ],
     );
   }
-
-  // ===== reusable section container =====
-  // Wraps any content in a bordered box with a titled header bar,
-  // matching the table style from home_screen.dart
 
   Widget _buildSection(String title, Widget content) {
     return Container(
@@ -332,7 +273,7 @@ class SettingsScreenState extends State<SettingsScreen> {
               color: AppColors.primary,
               borderRadius: BorderRadius.vertical(top: Radius.circular(4)),
             ),
-            child: Text(title, style: AppTextStyles.heading(size: 14)),
+            child: Text(title, style: AppTextStyles.heading()), 
           ),
           content,
         ],
@@ -340,8 +281,7 @@ class SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // ===== group settings content =====
-
+  // ===== group settings  =====
   Widget _notInGroupOptions() {
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -352,13 +292,32 @@ class SettingsScreenState extends State<SettingsScreen> {
             onPressed: joinGroup,
             icon: const Icon(Icons.group_add, size: 16),
             label: Text('JOIN GROUP', 
-            style: AppTextStyles.label(color: AppColors.primary)),
+            style: AppTextStyles.body()),
+            style: OutlinedButton.styleFrom(
+              padding:
+                const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+              side: const BorderSide(color: AppColors.primaryLight, width: 1),
+              backgroundColor: AppColors.surface,
+              shape: const RoundedRectangleBorder(
+                borderRadius: AppBorders.radius,
+                side: AppBorders.thin),
+            ),
           ),
           const SizedBox(height: AppSpacing.sm),
           ElevatedButton.icon(
             onPressed: createGroup,
             icon: const Icon(Icons.add, size: 16),
-            label: Text('CREATE GROUP', style: AppTextStyles.label(color: AppColors.primary)),
+            label: Text('CREATE GROUP', 
+            style: AppTextStyles.body()),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 0), // add this
+              side: const BorderSide(color: AppColors.primaryLight, width: 1),
+              backgroundColor: AppColors.surface,
+              shape: const RoundedRectangleBorder(
+                  borderRadius: AppBorders.radius),
+              padding:
+                  const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            ),
           ),
         ],
       ),
@@ -379,7 +338,7 @@ class SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(width: AppSpacing.sm),
               Text(
                 currentGroupName ?? 'Unknown Group',
-                style: AppTextStyles.heading(size: 16),
+                style: AppTextStyles.heading(),
               ),
             ],
           ),
@@ -401,7 +360,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                     ? [Padding(
                         padding: const EdgeInsets.all(AppSpacing.md),
                         child: Text('No members found.',
-                            style: AppTextStyles.body(color: AppColors.textSecondary)),
+                            style: AppTextStyles.body()),
                       )]
                     : _memberUsernames.map((username) => Padding(
                           padding: const EdgeInsets.symmetric(
@@ -412,8 +371,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                                   size: 14, color: AppColors.textSecondary),
                               const SizedBox(width: AppSpacing.sm),
                               Text(username,
-                                  style: AppTextStyles.body(
-                                      color: AppColors.textSecondary)),
+                                  style: AppTextStyles.body()),
                             ],
                           ),
                         )).toList(),
@@ -425,7 +383,7 @@ class SettingsScreenState extends State<SettingsScreen> {
           _buildSubSection(
             icon: Icons.phone_android,
             title: 'TRACKED BAD APPS',
-            subtitle: 'Check to vote for an app to be tracked',
+            subtitle: 'An app is tracked when more than 50% of members vote for it.',
             children: [
               // Column headers
               Padding(
@@ -450,16 +408,13 @@ class SettingsScreenState extends State<SettingsScreen> {
                 return Row(
                   children: [
                     const SizedBox(width: AppSpacing.md),
-                    // const Icon(Icons.block,
-                    //     size: 14, color: AppColors.error),
                     const SizedBox(width: AppSpacing.sm),
-                    Expanded(
+                    Expanded( //TODO: order this in chronological not alphabetical order
                       child: Text(appName,
-                          style: AppTextStyles.body(size: 13)),
+                          style: AppTextStyles.body()),
                     ),
                     Text(voteStr,
-                        style: AppTextStyles.mono(
-                            size: 13, color: AppColors.textSecondary)),
+                        style: AppTextStyles.mono()), 
                     Checkbox(
                       value: voted,
                       onChanged: (_) => _toggleVote(appName),
@@ -467,14 +422,6 @@ class SettingsScreenState extends State<SettingsScreen> {
                   ],
                 );
               }),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md, AppSpacing.xs, AppSpacing.md, AppSpacing.md),
-                child: Text(
-                  'An app is tracked when more than 50% of members vote for it.',
-                  style: AppTextStyles.label(color: AppColors.textMuted),
-                ),
-              ),
             ],
           ),
 
@@ -500,7 +447,342 @@ class SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  void joinGroup() {
+    final searchController = TextEditingController();
+    List<QueryDocumentSnapshot> searchResults = [];
+    final scaffoldContext = context;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          backgroundColor: AppColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: AppBorders.radius,
+            side: AppBorders.thin,
+          ),
+          title: Text('JOIN GROUP', style: AppTextStyles.heading()),
+          content: SizedBox(
+            width: double.maxFinite,  // AlertDialog reads this and skips IntrinsicWidth measurement
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: searchController,
+                  style: AppTextStyles.body(),
+                  decoration: const InputDecoration(labelText: 'Search for groups', prefixIcon: Icon(Icons.search)),
+                  onChanged: (value) async {
+                    if (value.isNotEmpty) {
+                      try {
+                        final results = await FirebaseFirestore.instance
+                            .collection('groups')
+                            .where('name', isGreaterThanOrEqualTo: value)
+                            .where('name', isLessThanOrEqualTo: '$value\uf8ff')
+                            .get();
+                        setDialogState(() => searchResults = results.docs);
+                      } catch (e) {
+                        await Authentication.showErrorDialog(
+                            context: dialogContext,
+                            message: 'Error searching for groups: $e');
+                      }
+                    } else {
+                      setDialogState(() => searchResults = []);
+                    }
+                  },
+                ),
+                const SizedBox(height: AppSpacing.md),
+                SizedBox(
+                  height: 200,
+                  child: searchResults.isEmpty
+                  ? Center(child: Text('Search for a group', 
+                  style: AppTextStyles.body(),))
+                  : ListView.builder(
+                    itemCount: searchResults.length,
+                    itemBuilder: (context, index) {
+                      final group = searchResults[index];
+                      return ListTile(
+                        leading: const Icon(Icons.group),
+                        title: Text(group['name'],
+                            style: AppTextStyles.body()),
+                        subtitle: Text(
+                            '${group['memberIds'].length} members',
+                            style: AppTextStyles.label()),
+                        onTap: () {
+                          Navigator.pop(dialogContext);
+                          showPasswordDialog(
+                              scaffoldContext, group.id, group['name']);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  //TODO: make sure you cant create duplicate group names
+  void createGroup() {
+    final nameController = TextEditingController();
+    final passwordController = TextEditingController();
+    final scaffoldContext = context;
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: AppBorders.radius,
+          side: AppBorders.thin,
+        ),
+        title: Text('CREATE GROUP', style: AppTextStyles.heading()),
+        
+        
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              style: AppTextStyles.body(),
+              decoration: const InputDecoration(
+                labelText: 'Group Name',
+                prefixIcon: Icon(Icons.group),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            TextField(
+              controller: passwordController,
+              style: AppTextStyles.body(),
+              decoration: const InputDecoration(
+                labelText: 'Group Password',
+                prefixIcon: Icon(Icons.lock),
+              ),
+              obscureText: true,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.success,
+                // foregroundColor: AppColors.textPrimary,
+              ),
+             onPressed: () async {
+              if (nameController.text.isEmpty ||
+                  passwordController.text.isEmpty) {
+                await Authentication.showErrorDialog(
+                    context: dialogContext,
+                    message: 'Please fill in all fields.');
+                return;
+              }
+              try {
+                final userId = FirebaseAuth.instance.currentUser!.uid;
+                final nameLower = nameController.text.trim().toLowerCase();
+
+                // Check for duplicate group name (case-insensitive)
+                final existing = await FirebaseFirestore.instance
+                    .collection('groups')
+                    .where('nameLower', isEqualTo: nameLower)
+                    .limit(1)
+                    .get();
+                if (existing.docs.isNotEmpty) {
+                  await Authentication.showErrorDialog(
+                      context: dialogContext,
+                      message: 'A group with that name already exists. Please choose a different name.');
+                  return;
+                }
+
+                final groupRef =
+                    FirebaseFirestore.instance.collection('groups').doc();
+                await groupRef.set({
+                  'name': nameController.text.trim(),
+                  'nameLower': nameLower,
+                  'password': passwordController.text,
+                  'memberIds': [userId],
+                  'createdAt': FieldValue.serverTimestamp(),
+                  'createdBy': userId,
+                });
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(userId)
+                    .set({'groupId': groupRef.id}, SetOptions(merge: true));
+                Navigator.pop(dialogContext);
+                setState(() {
+                  isInGroup = true;
+                  currentGroupId = groupRef.id;
+                  currentGroupName = nameController.text;
+                });
+                ScaffoldMessenger.of(scaffoldContext).showSnackBar(
+                  SnackBar(
+                      content: Text('Created group: ${nameController.text}')));
+              } catch (e) {
+                Navigator.pop(dialogContext);
+                await Authentication.showErrorDialog(
+                    context: scaffoldContext,
+                    message: 'Error creating group: $e');
+              }
+            },
+            child: const Text('Create', style: TextStyle(color: AppColors.textPrimary)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void showPasswordDialog(
+      BuildContext scaffoldContext, String groupId, String groupName) {
+    final passwordController = TextEditingController();
+    showDialog(
+      context: scaffoldContext,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: AppBorders.radius, side: AppBorders.thin),
+        title: Text('JOIN $groupName', style: AppTextStyles.heading()),
+        content: TextField(
+          controller: passwordController,
+          style: AppTextStyles.body(),
+          decoration: InputDecoration(
+            labelText: 'Enter group password', hintStyle: AppTextStyles.label(),
+            prefixIcon: Icon(Icons.lock),
+          ),
+          obscureText: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.success,
+              // foregroundColor: AppColors.textPrimary,
+            ),
+            onPressed: () async {
+              try {
+                final groupDoc = await FirebaseFirestore.instance
+                    .collection('groups')
+                    .doc(groupId)
+                    .get();
+                if (groupDoc.data()?['password'] == passwordController.text) {
+                  final userId = FirebaseAuth.instance.currentUser!.uid;
+                  await FirebaseFirestore.instance
+                      .collection('groups')
+                      .doc(groupId)
+                      .update({'memberIds': FieldValue.arrayUnion([userId])});
+                  await FirebaseFirestore.instance
+                      .collection('users')
+                      .doc(userId)
+                      .set({'groupId': groupId}, SetOptions(merge: true));
+                  final groupData = groupDoc.data()!;
+                  final updatedMemberIds = List<String>.from(groupData['memberIds'] ?? [])
+                    ..add(userId);
+                  final rawVotes = groupData['appVotes'] as Map<String, dynamic>? ?? {};
+                  final parsedVotes = rawVotes.map((app, voters) =>
+                      MapEntry(app, List<String>.from(voters as List)));
+
+                  Navigator.pop(dialogContext);
+                  setState(() {
+                    isInGroup = true;
+                    currentGroupId = groupId;
+                    currentGroupName = groupName;
+                    _memberIds = updatedMemberIds;
+                    _appVotes = parsedVotes;
+                  });
+                  await _fetchMemberUsernames(updatedMemberIds);
+
+                  ScaffoldMessenger.of(scaffoldContext).showSnackBar(
+                    SnackBar(content: Text('Joined $groupName')));
+                } else {
+                  await Authentication.showErrorDialog(
+                      context: dialogContext, message: 'Incorrect password.');
+                }
+              } catch (e) {
+                Navigator.pop(dialogContext);
+                await Authentication.showErrorDialog(
+                    context: scaffoldContext,
+                    message: 'Error joining group: $e');
+              }
+            },
+            child: Text('Join', style: AppTextStyles.label(color: AppColors.textPrimary)), 
+          ),
+        ],
+      ),
+    );
+  }
+  
+  void leaveGroup() {
+    final scaffoldContext = context;
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: AppBorders.radius,
+          side: AppBorders.thin,
+        ),
+        title: Text('LEAVE GROUP', style: AppTextStyles.heading()),
+        content: Text('Are you sure you want to leave this group?',
+            style: AppTextStyles.label()), 
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Text('NO', style: AppTextStyles.body()),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                final userId = FirebaseAuth.instance.currentUser!.uid;
+                await FirebaseFirestore.instance
+                    .collection('groups')
+                    .doc(currentGroupId)
+                    .update({'memberIds': FieldValue.arrayRemove([userId])});
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(userId)
+                    .update({'groupId': FieldValue.delete()});
+                Navigator.pop(dialogContext);
+                setState(() {
+                  isInGroup = false;
+                  currentGroupId = null;
+                  currentGroupName = null;
+                  _memberUsernames = [];
+                  _memberIds = [];
+                  _appVotes = {};
+                });
+                ScaffoldMessenger.of(scaffoldContext).showSnackBar(
+                  const SnackBar(content: Text('Left the group')));
+              } catch (e) {
+                Navigator.pop(dialogContext);
+                await Authentication.showErrorDialog(
+                    context: scaffoldContext,
+                    message: 'Error leaving group: $e');
+              }
+            },
+              style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              //foregroundColor: AppColors.textPrimary,
+            ),
+            child: Text('YES', style: AppTextStyles.body()),
+          ),
+        ],
+      ),
+    );
+  }
+
   // Collapsible subsection used inside group settings
+  //TODO: is this redundant? it seems like the whole thing is rewritten inside of _inGroupOptions
   Widget _buildSubSection({
     required IconData icon,
     required String title,
@@ -509,7 +791,7 @@ class SettingsScreenState extends State<SettingsScreen> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(color: AppColors.primaryLight, width: 1),
+        border: Border.all(width: 1),
         borderRadius: AppBorders.radius,
       ),
       child: Theme(
@@ -518,7 +800,7 @@ class SettingsScreenState extends State<SettingsScreen> {
           leading: Icon(icon, color: AppColors.primaryLight, size: 18),
           title: Text(title, style: AppTextStyles.body()),
           subtitle: Text(subtitle,
-              style: AppTextStyles.label(color: AppColors.textSecondary)),
+              style: AppTextStyles.label()),
           iconColor: AppColors.primaryBright,
           collapsedIconColor: AppColors.primaryLight,
           children: children,
@@ -527,8 +809,7 @@ class SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  // ===== personal settings content =====
-
+  // ===== personal settings  =====
   void signOut() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -541,18 +822,18 @@ class SettingsScreenState extends State<SettingsScreen> {
         title: Text('SIGN OUT', style: AppTextStyles.heading()),
         content: Text(
           'Are you sure you want to sign out?',
-          style: AppTextStyles.body(color: AppColors.textSecondary),
+          style: AppTextStyles.label(),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text('NO', style: AppTextStyles.body(color: AppColors.textSecondary)),
+            child: Text('NO', style: AppTextStyles.body()),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(dialogContext, true),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,
-              foregroundColor: AppColors.textPrimary,
+              // foregroundColor: AppColors.textPrimary,
             ),
             child: Text('YES', style: AppTextStyles.body()),
           ),
@@ -630,7 +911,6 @@ class SettingsScreenState extends State<SettingsScreen> {
                   const EdgeInsets.symmetric(vertical: AppSpacing.sm),
             ),
           ),
-
         ],
       ),
     );
@@ -643,302 +923,9 @@ class SettingsScreenState extends State<SettingsScreen> {
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Text(
         'I built this app soely for the purpose of bullying my friends. If you find it fun as well thats pretty awesome! Also if you are an engineering hiring manager looking to hire interns hit me up.',
-        style: AppTextStyles.body(color: AppColors.textSecondary),
+        style: AppTextStyles.body(),
       ),
     );
   }
 
-  // ===== join / create / leave dialogs (logic unchanged, styling updated) =====
-
-  void joinGroup() {
-    final searchController = TextEditingController();
-    List<QueryDocumentSnapshot> searchResults = [];
-    final scaffoldContext = context;
-
-    showDialog(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (dialogContext, setDialogState) => AlertDialog(
-          backgroundColor: AppColors.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: AppBorders.radius,
-            side: AppBorders.thin,
-          ),
-          title: Text('JOIN GROUP', style: AppTextStyles.heading()),
-          content: SizedBox(
-            width: double.maxFinite,  // AlertDialog reads this and skips IntrinsicWidth measurement
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: searchController,
-                  style: AppTextStyles.body(),
-                  decoration: const InputDecoration(labelText: 'Search for groups', prefixIcon: Icon(Icons.search)),
-                  onChanged: (value) async {
-                    if (value.isNotEmpty) {
-                      try {
-                        final results = await FirebaseFirestore.instance
-                            .collection('groups')
-                            .where('name', isGreaterThanOrEqualTo: value)
-                            .where('name', isLessThanOrEqualTo: '$value\uf8ff')
-                            .get();
-                        setDialogState(() => searchResults = results.docs);
-                      } catch (e) {
-                        await Authentication.showErrorDialog(
-                            context: dialogContext,
-                            message: 'Error searching for groups: $e');
-                      }
-                    } else {
-                      setDialogState(() => searchResults = []);
-                    }
-                  },
-                ),
-                const SizedBox(height: AppSpacing.md),
-                SizedBox(
-                  height: 200,
-                  child: searchResults.isEmpty
-                  ? Center(child: Text('Search for a group', 
-                  style: AppTextStyles.body(color: AppColors.textSecondary),))
-                  : ListView.builder(
-                    itemCount: searchResults.length,
-                    itemBuilder: (context, index) {
-                      final group = searchResults[index];
-                      return ListTile(
-                        leading: const Icon(Icons.group),
-                        title: Text(group['name'],
-                            style: AppTextStyles.body()),
-                        subtitle: Text(
-                            '${group['memberIds'].length} members',
-                            style: AppTextStyles.label()),
-                        onTap: () {
-                          Navigator.pop(dialogContext);
-                          showPasswordDialog(
-                              scaffoldContext, group.id, group['name']);
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void showPasswordDialog(
-      BuildContext scaffoldContext, String groupId, String groupName) {
-    final passwordController = TextEditingController();
-    showDialog(
-      context: scaffoldContext,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: AppBorders.radius, side: AppBorders.thin),
-        title: Text('JOIN $groupName', style: AppTextStyles.heading()),
-        content: TextField(
-          controller: passwordController,
-          style: AppTextStyles.body(),
-          decoration: InputDecoration(
-            labelText: 'Enter group password', hintStyle: AppTextStyles.label(color: AppColors.textSecondary),
-            prefixIcon: Icon(Icons.lock),
-          ),
-          obscureText: true,
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              try {
-                final groupDoc = await FirebaseFirestore.instance
-                    .collection('groups')
-                    .doc(groupId)
-                    .get();
-                if (groupDoc.data()?['password'] == passwordController.text) {
-                  final userId = FirebaseAuth.instance.currentUser!.uid;
-                  await FirebaseFirestore.instance
-                      .collection('groups')
-                      .doc(groupId)
-                      .update({'memberIds': FieldValue.arrayUnion([userId])});
-                  await FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(userId)
-                      .set({'groupId': groupId}, SetOptions(merge: true));
-                  Navigator.pop(dialogContext);
-                  setState(() {
-                    isInGroup = true;
-                    currentGroupId = groupId;
-                    currentGroupName = groupName;
-                  });
-                  ScaffoldMessenger.of(scaffoldContext).showSnackBar(
-                    SnackBar(content: Text('Joined $groupName')));
-                } else {
-                  await Authentication.showErrorDialog(
-                      context: dialogContext, message: 'Incorrect password.');
-                }
-              } catch (e) {
-                Navigator.pop(dialogContext);
-                await Authentication.showErrorDialog(
-                    context: scaffoldContext,
-                    message: 'Error joining group: $e');
-              }
-            },
-            child: const Text('Join'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void createGroup() {
-    final nameController = TextEditingController();
-    final passwordController = TextEditingController();
-    final scaffoldContext = context;
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        title: Text('CREATE GROUP', style: AppTextStyles.heading()),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameController,
-              style: AppTextStyles.body(),
-              decoration: const InputDecoration(
-                labelText: 'Group Name',
-                prefixIcon: Icon(Icons.group),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            TextField(
-              controller: passwordController,
-              style: AppTextStyles.body(),
-              decoration: const InputDecoration(
-                labelText: 'Group Password',
-                prefixIcon: Icon(Icons.lock),
-              ),
-              obscureText: true,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameController.text.isEmpty ||
-                  passwordController.text.isEmpty) {
-                await Authentication.showErrorDialog(
-                    context: dialogContext,
-                    message: 'Please fill in all fields.');
-                return;
-              }
-              try {
-                final userId = FirebaseAuth.instance.currentUser!.uid;
-                final groupRef =
-                    FirebaseFirestore.instance.collection('groups').doc();
-                await groupRef.set({
-                  'name': nameController.text,
-                  'password': passwordController.text,
-                  'memberIds': [userId],
-                  'createdAt': FieldValue.serverTimestamp(),
-                  'createdBy': userId,
-                });
-                await FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(userId)
-                    .set({'groupId': groupRef.id}, SetOptions(merge: true));
-                Navigator.pop(dialogContext);
-                setState(() {
-                  isInGroup = true;
-                  currentGroupId = groupRef.id;
-                  currentGroupName = nameController.text;
-                });
-                ScaffoldMessenger.of(scaffoldContext).showSnackBar(
-                  SnackBar(
-                      content: Text('Created group: ${nameController.text}')));
-              } catch (e) {
-                Navigator.pop(dialogContext);
-                await Authentication.showErrorDialog(
-                    context: scaffoldContext,
-                    message: 'Error creating group: $e');
-              }
-            },
-            child: const Text('Create'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void leaveGroup() {
-    final scaffoldContext = context;
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: AppBorders.radius,
-          side: AppBorders.thin,
-        ),
-        title: Text('LEAVE GROUP', style: AppTextStyles.heading()),
-        content: Text('Are you sure you want to leave this group?',
-            style: AppTextStyles.body(color: AppColors.textSecondary)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Text('NO', style: AppTextStyles.body(color: AppColors.textSecondary)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              try {
-                final userId = FirebaseAuth.instance.currentUser!.uid;
-                await FirebaseFirestore.instance
-                    .collection('groups')
-                    .doc(currentGroupId)
-                    .update({'memberIds': FieldValue.arrayRemove([userId])});
-                await FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(userId)
-                    .update({'groupId': FieldValue.delete()});
-                Navigator.pop(dialogContext);
-                setState(() {
-                  isInGroup = false;
-                  currentGroupId = null;
-                  currentGroupName = null;
-                  _memberUsernames = [];
-                  _memberIds = [];
-                  _appVotes = {};
-                });
-                ScaffoldMessenger.of(scaffoldContext).showSnackBar(
-                  const SnackBar(content: Text('Left the group')));
-              } catch (e) {
-                Navigator.pop(dialogContext);
-                await Authentication.showErrorDialog(
-                    context: scaffoldContext,
-                    message: 'Error leaving group: $e');
-              }
-            },
-              style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: AppColors.textPrimary,
-            ),
-            child: Text('YES', style: AppTextStyles.body()),
-          ),
-        ],
-      ),
-    );
-  }
 }

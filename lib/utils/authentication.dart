@@ -105,7 +105,7 @@ class Authentication {
       } else if (e.code == 'invalid-email') {
         await showErrorDialog(context: context, message: 'Invalid email address.');
       } else {
-        await showErrorDialog(context: context, message: 'Incorrect email  and/or password. Try again.');
+        await showErrorDialog(context: context, message: 'Incorrect email and/or password. Try again.');
       }
     } catch (e) {
       await showErrorDialog(context: context, message: 'Error occurred during sign in. Try again.');

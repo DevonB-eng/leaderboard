@@ -31,7 +31,7 @@ class _SignInScreenState extends State<SignInScreen> {
                 horizontal: AppSpacing.md,
                 vertical: AppSpacing.sm,
               ),
-              child: Text('LEADERBOARD', textAlign: TextAlign.center, style: AppTextStyles.display(size: 36),
+              child: Text('LEADERBOARD', textAlign: TextAlign.center, style: AppTextStyles.display(),
               ),
             ),
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 // import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:leaderboard/utils/authentication.dart';
+import 'package:leaderboard/assets/design.dart';
 
 /*
 email_sign_in_button.dart - the button that users click to sign in with email
@@ -30,13 +31,20 @@ class _EmailSignInButtonState extends State<EmailSignInButton> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(
-          title: Text(isSignUp ? 'Sign Up with Email' : 'Sign In with Email'),
+          backgroundColor: AppColors.surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: AppBorders.radius,
+            side: AppBorders.thin,
+          ),
+          title: Text(isSignUp ? 'Sign Up with Email' : 'Sign In with Email', 
+          style: AppTextStyles.heading()),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (isSignUp) ...[
                 TextField(
                   controller: nameController,
+                  style: AppTextStyles.body(),
                   decoration: InputDecoration(
                     labelText: 'Username',
                     border: OutlineInputBorder(),
@@ -47,6 +55,7 @@ class _EmailSignInButtonState extends State<EmailSignInButton> {
               ],
               TextField(
                 controller: emailController,
+                style: AppTextStyles.body(),
                 decoration: InputDecoration(
                   labelText: 'Email',
                   border: OutlineInputBorder(),
@@ -56,6 +65,7 @@ class _EmailSignInButtonState extends State<EmailSignInButton> {
               SizedBox(height: 16),
               TextField(
                 controller: passwordController,
+                style: AppTextStyles.body(),
                 decoration: InputDecoration(
                   labelText: 'Password',
                   border: OutlineInputBorder(),
@@ -73,7 +83,7 @@ class _EmailSignInButtonState extends State<EmailSignInButton> {
                   isSignUp
                       ? 'Already have an account? Sign In'
                       : 'Don\'t have an account? Sign Up',
-                  style: TextStyle(fontSize: 12),
+                  style: AppTextStyles.label(),
                 ),
               ),
             ],
@@ -81,9 +91,12 @@ class _EmailSignInButtonState extends State<EmailSignInButton> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: Text('Cancel'),
+              child: Text('Cancel', style: AppTextStyles.body()),
             ),
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.success,
+              ),
               onPressed: () async {
                 // Validate username before doing anything
                 if (isSignUp && nameController.text.trim().isEmpty) {
@@ -123,7 +136,7 @@ class _EmailSignInButtonState extends State<EmailSignInButton> {
                   });
                 }
               },
-              child: Text(isSignUp ? 'Sign Up' : 'Sign In'),
+              child: Text(isSignUp ? 'Sign Up' : 'Sign In', style: AppTextStyles.body(),),
             ),
           ],
         ),
@@ -134,19 +147,20 @@ class _EmailSignInButtonState extends State<EmailSignInButton> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16.0),
+      padding: const EdgeInsets.all(AppSpacing.sm),
       child: _isSigningIn
           ? CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryBright),
             )
-          : OutlinedButton(
-              style: ButtonStyle(
-                backgroundColor: WidgetStateProperty.all(Colors.white),
-                shape: WidgetStateProperty.all(
-                  RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(40),
-                  ),
-                ),
+          : ElevatedButton(
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 0), // add this
+                side: const BorderSide(color: AppColors.primaryLight, width: 1),
+                backgroundColor: AppColors.surface,
+                shape: const RoundedRectangleBorder(
+                    borderRadius: AppBorders.radius),
+                padding:
+                    const EdgeInsets.symmetric(vertical: AppSpacing.sm),
               ),
               onPressed: _showEmailPasswordDialog,
               child: Padding(
@@ -155,16 +169,12 @@ class _EmailSignInButtonState extends State<EmailSignInButton> {
                   mainAxisSize: MainAxisSize.min,
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: <Widget>[
-                    Icon(Icons.email, size: 35, color: Colors.black54),
+                    Icon(Icons.email, size: 35),
                     Padding(
                       padding: const EdgeInsets.only(left: 10),
                       child: Text(
                         'Sign in with Email',
-                        style: TextStyle(
-                          fontSize: 20,
-                          color: Colors.black54,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: AppTextStyles.body()
                       ),
                     ),
                   ],
