@@ -28,7 +28,7 @@ A Flutter app that tracks your friend group's screentime and ranks everyone on a
 
 | Home | Leaderboard | Settings |
 |------|-------------|----------|
-| ![Home](lib\assets\Home.png) | ![Leaderboard](lib\assets\Leaderboard.png) | ![Settings](lib\assets\Settings.png) |
+| ![Home](lib/assets/Home.png) | ![Leaderboard](lib/assets/Leaderboard.png) | ![Settings](lib/assets/Settings.png) |
 
 ---
 
