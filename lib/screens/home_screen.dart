@@ -81,14 +81,14 @@ class HomeScreenState extends State<HomeScreen> {
   Future<void> _uploadAndRefresh() async {
     if (_groupId == null) return;
     final now = DateTime.now();
-    if (_lastUpload != null &&
-        now.difference(_lastUpload!) < const Duration(minutes: 10)) {
-      // Too recent — skip upload but still refresh the leaderboard display
-      if (mounted) setState(() {
-        _leaderboardFuture = _fetchLeaderboard(_groupId!);
-      });
-      return;
-    }
+    // if (_lastUpload != null &&
+    //     now.difference(_lastUpload!) < const Duration(minutes: 10)) {
+    //   // Too recent — skip upload but still refresh the leaderboard display
+    //   if (mounted) setState(() {
+    //     _leaderboardFuture = _fetchLeaderboard(_groupId!);
+    //   });
+    //   return;
+    // }
     try {
       final badAppUsage = await _service.fetchBadAppUsage();
       await _service.uploadScreentime(badAppUsage);
@@ -375,12 +375,12 @@ class HomeScreenState extends State<HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text('LEADERBOARD', textAlign: TextAlign.center, style: AppTextStyles.display()),
-              // IconButton( // testing button
-              //   icon: const Icon(Icons.refresh,
-              //       color: AppColors.textPrimary, size: 22),
-              //   tooltip: 'Refresh',
-              //   onPressed: _uploadAndRefresh,
-              // ),
+              IconButton( // testing button
+                icon: const Icon(Icons.refresh,
+                    color: AppColors.textPrimary, size: 22),
+                tooltip: 'Refresh',
+                onPressed: _uploadAndRefresh,
+              ),
             ],
           ),
         ),

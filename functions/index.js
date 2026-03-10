@@ -110,7 +110,11 @@ exports.aggregateLeaderboards = onDocumentWritten(
       );
       await db.collection("screentime").doc(userId)
         .collection("history").doc(today)
-        .set({ totalBadMinutes, recordedAt: FieldValue.serverTimestamp() });
+        .set({ 
+          totalBadMinutes, 
+          badAppsBreakdown: filteredBreakdown,   // ← add this line
+          recordedAt: FieldValue.serverTimestamp() 
+        });
     }
 
     // Write group average daily history
