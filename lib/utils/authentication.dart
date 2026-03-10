@@ -39,7 +39,6 @@ class Authentication {
       },
     );
   }
-
   static Future<User?> signUpwithEmailAndPassword({
     required BuildContext context,
     required String username,
@@ -68,10 +67,8 @@ class Authentication {
     } on FirebaseAuthException catch (e) {
       if (e.code == 'weak-password') {
         await showErrorDialog(context: context, message: 'The password provided is too weak (must be at least 6 characters).'); 
-      } else if (e.code == 'email-already-in-use') {
-        await showErrorDialog(context: context, message: 'An account already exists for that email.');
-      } else {
-        await showErrorDialog(context: context, message: 'Auth error during sign up: ${e.message}');
+      } else if (e.code == 'email-already-in-use') {await showErrorDialog(context: context, message: 'An account already exists for that email.');
+      } else {await showErrorDialog(context: context, message: 'Auth error during sign up: ${e.message}');
       }
     } catch (e) {
       await showErrorDialog(context: context, message: 'Error occurred during sign up. Try again.');
@@ -93,12 +90,8 @@ class Authentication {
     } on FirebaseAuthException catch (e) {
       if (e.code == 'user-not-found') {
         await showErrorDialog(context: context, message: 'No user found for that email.');
-      } else if (e.code == 'wrong-password') {
-        await showErrorDialog(context: context, message: 'Wrong password provided.');
-      } else if (e.code == 'invalid-email') {
-        await showErrorDialog(context: context, message: 'Invalid email address.');
-      } else {
-        await showErrorDialog(context: context, message: 'Incorrect email and/or password. Try again.');
+      } else if (e.code == 'invalid-credential') {
+        await showErrorDialog(context: context, message: 'Incorrect email and/or password.');
       }
     } catch (e) {
       await showErrorDialog(context: context, message: 'Error occurred during sign in. Try again.');

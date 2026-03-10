@@ -1,10 +1,8 @@
 const { setGlobalOptions } = require("firebase-functions");
-const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
-const bcryptjs = require("bcryptjs");
-
-const SALT_ROUNDS = 10;
+const { onDocumentWritten } = require("firebase-functions/v2/firestore");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+const bcryptjs = require("bcryptjs");
 const admin = require("firebase-admin");
 
 admin.initializeApp();
@@ -12,28 +10,13 @@ const db = getFirestore();
 
 setGlobalOptions({ maxInstances: 10 });
 
-const PST_OFFSET_HOURS = -8;
+const SALT_ROUNDS = 10;
 
-function getCurrentHourPST() {
-  const utcHour = new Date().getUTCHours();
-  return (utcHour + 24 + PST_OFFSET_HOURS) % 24;
-}
-
-// Returns today's date string in PST as YYYY-MM-DD.
-// Important to use PST here so the history doc date matches
-// what the user would expect to see on their phone.
+// Returns today's date string in PST/PDT as YYYY-MM-DD.
+// en-CA locale naturally returns YYYY-MM-DD format.
+// Uses America/Los_Angeles so DST is handled automatically.
 function getTodayPST() {
-  const now = new Date();
-  const pstOffset = PST_OFFSET_HOURS * 60 * 60 * 1000;
-  const pstDate = new Date(now.getTime() + pstOffset);
-  return pstDate.toISOString().split('T')[0];
-}
-
-function isRecentlyActive(screentimeData) {
-  if (!screentimeData?.lastUpdated) return false;
-  const lastUpdated = screentimeData.lastUpdated.toDate();
-  const minutesAgo = (Date.now() - lastUpdated.getTime()) / 1000 / 60;
-  return minutesAgo <= 35;
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });
 }
 
 function getActiveApps(appVotes, totalMembers) {
@@ -47,52 +30,40 @@ function getActiveApps(appVotes, totalMembers) {
   return activeApps;
 }
 
-exports.aggregateLeaderboards = onSchedule("every 30 minutes", async (event) => {
+// ===== aggregateLeaderboards =====
+// Triggered whenever a screentime document is written.
+// Rebuilds the leaderboard for the affected user's group immediately,
+// eliminating the race condition that existed with the old scheduled approach.
+exports.aggregateLeaderboards = onDocumentWritten(
+  "screentime/{userId}",
+  async (event) => {
+    const userId = event.params.userId;
 
-  // ===== quiet hours check =====
-  const currentHour = getCurrentHourPST();
-  if (currentHour >= 0 && currentHour < 6) {
-    console.log(`Quiet hours active (${currentHour}:xx PST). Skipping run.`);
-    return;
-  }
+    const afterData = event.data.after.data();
+    if (!afterData || !afterData.badAppsBreakdown || afterData.badAppsBreakdown.length === 0) return;
 
-  const today = getTodayPST();
 
-  const groupsSnapshot = await db.collection("groups").get();
-  if (groupsSnapshot.empty) {
-    console.log("No groups found.");
-    return;
-  }
+    // Find which group this user belongs to
+    const userDoc = await db.collection("users").doc(userId).get();
+    if (!userDoc.exists || !userDoc.data().groupId) return;
+    const groupId = userDoc.data().groupId;
 
-  const tasks = groupsSnapshot.docs.map(async (groupDoc) => {
-    const groupId = groupDoc.id;
+    const today = getTodayPST();
+    const groupDoc = await db.collection("groups").doc(groupId).get();
+    if (!groupDoc.exists) return;
+
     const groupData = groupDoc.data();
     const memberIds = groupData.memberIds || [];
     const appVotes = groupData.appVotes || {};
-
-    if (memberIds.length === 0) {
-      console.log(`Group ${groupId} has no members, skipping.`);
-      return;
-    }
-
     const activeApps = getActiveApps(appVotes, memberIds.length);
 
-    // ===== fetch all member screentime and user docs in parallel =====
+    // Fetch all member screentime and user docs in parallel
     const [screentimeDocs, userDocs] = await Promise.all([
       Promise.all(memberIds.map((uid) => db.collection("screentime").doc(uid).get())),
       Promise.all(memberIds.map((uid) => db.collection("users").doc(uid).get())),
     ]);
 
-    // ===== skip if no members have been active recently =====
-    const anyActive = screentimeDocs.some(
-      (doc) => doc.exists && isRecentlyActive(doc.data())
-    );
-    if (!anyActive) {
-      console.log(`Group ${groupId}: no recent activity, skipping.`);
-      return;
-    }
-
-    // ===== build leaderboard entries =====
+    // Build leaderboard entries
     const entries = memberIds.map((uid, i) => {
       const username = userDocs[i].exists
         ? (userDocs[i].data().username ?? "Unknown")
@@ -104,11 +75,9 @@ exports.aggregateLeaderboards = onSchedule("every 30 minutes", async (event) => 
 
       const st = screentimeDocs[i].data();
       const rawBreakdown = st.badAppsBreakdown ?? [];
-
       const filteredBreakdown = activeApps === null
         ? rawBreakdown
         : rawBreakdown.filter((item) => activeApps.has(item.appName));
-
       const totalBadMinutes = filteredBreakdown.reduce(
         (sum, item) => sum + (item.minutes ?? 0), 0
       );
@@ -124,71 +93,39 @@ exports.aggregateLeaderboards = onSchedule("every 30 minutes", async (event) => 
 
     entries.sort((a, b) => b.totalBadMinutes - a.totalBadMinutes);
 
-    // ===== write current leaderboard (unchanged) =====
-    await db
-      .collection("groups")
-      .doc(groupId)
-      .collection("leaderboard")
-      .doc("current")
-      .set({
-        lastUpdated: FieldValue.serverTimestamp(),
-        entries,
-      });
+    // Write current leaderboard
+    await db.collection("groups").doc(groupId)
+      .collection("leaderboard").doc("current")
+      .set({ lastUpdated: FieldValue.serverTimestamp(), entries });
 
-    // ===== write personal daily history for each member =====
-    // Uses set() so repeated runs just overwrite the same day's doc.
-    // This means today's snapshot always reflects the latest upload.
-    await Promise.all(
-      memberIds.map((uid, i) => {
-        if (!screentimeDocs[i].exists) return Promise.resolve();
-        const st = screentimeDocs[i].data();
+    // Write personal daily history for the triggering user
+    const st = event.data.after.data();
+    if (st) {
+      const rawBreakdown = st.badAppsBreakdown ?? [];
+      const filteredBreakdown = activeApps === null
+        ? rawBreakdown
+        : rawBreakdown.filter((item) => activeApps.has(item.appName));
+      const totalBadMinutes = filteredBreakdown.reduce(
+        (sum, item) => sum + (item.minutes ?? 0), 0
+      );
+      await db.collection("screentime").doc(userId)
+        .collection("history").doc(today)
+        .set({ totalBadMinutes, recordedAt: FieldValue.serverTimestamp() });
+    }
 
-        // Apply the same vote filtering as the leaderboard so
-        // personal history is consistent with what the group sees.
-        const rawBreakdown = st.badAppsBreakdown ?? [];
-        const filteredBreakdown = activeApps === null
-          ? rawBreakdown
-          : rawBreakdown.filter((item) => activeApps.has(item.appName));
-        const totalBadMinutes = filteredBreakdown.reduce(
-          (sum, item) => sum + (item.minutes ?? 0), 0
-        );
-
-        return db
-          .collection("screentime")
-          .doc(uid)
-          .collection("history")
-          .doc(today)
-          .set({
-            totalBadMinutes,
-            recordedAt: FieldValue.serverTimestamp(),
-          });
-      })
-    );
-
-    // ===== write group average daily history =====
-    // Compute average across members who have screentime data.
+    // Write group average daily history
     const membersWithData = entries.filter((e) => e.lastUpdated !== null);
     if (membersWithData.length > 0) {
       const averageBadMinutes = membersWithData.reduce(
         (sum, e) => sum + e.totalBadMinutes, 0
       ) / membersWithData.length;
-
-      await db
-        .collection("groups")
-        .doc(groupId)
-        .collection("history")
-        .doc(today)
-        .set({
-          averageBadMinutes,
-          recordedAt: FieldValue.serverTimestamp(),
-        });
+      await db.collection("groups").doc(groupId)
+        .collection("history").doc(today)
+        .set({ averageBadMinutes, recordedAt: FieldValue.serverTimestamp() });
     }
+  }
+);
 
-    console.log(`Updated leaderboard and history for group ${groupId} (${entries.length} members)`);
-  });
-
-  await Promise.all(tasks);
-});
 // ===== createGroup =====
 // Callable function — hashes the password server-side before writing to Firestore.
 // The plaintext password never touches the database.
@@ -279,6 +216,7 @@ exports.joinGroup = onCall(async (request) => {
     appVotes: groupData.appVotes ?? {},
   };
 });
+
 // ===== leaveGroup =====
 // Callable function — removes the user from the group and deletes the group
 // document entirely if they were the last member.

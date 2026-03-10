@@ -25,7 +25,7 @@ Future<void> main() async {
   // remember to set this to false before releasing.
   await Workmanager().initialize(
     callbackDispatcher,
-    // isInDebugMode: true,
+    isInDebugMode: false,
   );
 
   // Register the periodic background sync task.
@@ -55,8 +55,8 @@ class AppUsageApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false, // Do I want this here? 
-      theme: ThemeData(primarySwatch: Colors.green),
+      debugShowCheckedModeBanner: false, 
+      theme: ThemeData(primarySwatch: Colors.deepPurple),
       home: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {

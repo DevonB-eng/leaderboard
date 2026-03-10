@@ -3,12 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:leaderboard/screens/settings_screen.dart';
-// import 'package:leaderboard/screens/user_stats_screen.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:fl_chart/fl_chart.dart';
 
 import 'package:leaderboard/utils/screen_time.dart';
-import 'package:leaderboard/utils/authentication.dart';
 import 'package:leaderboard/assets/design.dart';
 
 /*
@@ -25,15 +23,12 @@ class HomeScreen extends StatefulWidget {
 }
 
 class HomeScreenState extends State<HomeScreen> {
-  // Group state
   String? _groupId;
   late Future<String?> _groupFuture;
-  // Leaderboard state
   Future<DocumentSnapshot>? _leaderboardFuture;
-  // 30-min upload + refresh timer
   Timer? _syncTimer;
   final _service = ScreenTimeService();
-
+  DateTime? _lastUpload; // add this
   Map<String, double> _personalHistory = {};
   Map<String, double> _groupHistory = {};
   bool _historyLoaded = false;
@@ -59,8 +54,9 @@ class HomeScreenState extends State<HomeScreen> {
           _groupId = groupId;
           _leaderboardFuture = _fetchLeaderboard(groupId);
         });
+        _uploadAndRefresh(); // add this line
         _startSyncTimer();
-        _fetchHistory(groupId); // fetch history alongside leaderboard
+        _fetchHistory(groupId);
       }
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -84,21 +80,34 @@ class HomeScreenState extends State<HomeScreen> {
 
   Future<void> _uploadAndRefresh() async {
     if (_groupId == null) return;
+    final now = DateTime.now();
+    if (_lastUpload != null &&
+        now.difference(_lastUpload!) < const Duration(minutes: 10)) {
+      // Too recent — skip upload but still refresh the leaderboard display
+      if (mounted) setState(() {
+        _leaderboardFuture = _fetchLeaderboard(_groupId!);
+      });
+      return;
+    }
     try {
       final badAppUsage = await _service.fetchBadAppUsage();
       await _service.uploadScreentime(badAppUsage);
+      _lastUpload = now;
     } catch (e) {
       debugPrint('Screentime upload error: $e');
     }
-    if (mounted) {
-      setState(() {
-        _leaderboardFuture = _fetchLeaderboard(_groupId!);
-      });
-    }
+    if (mounted) setState(() {
+      _leaderboardFuture = _fetchLeaderboard(_groupId!);
+    });
   }
 
   // ===== firebase fetches =====
-  // history fetches for stats
+  String _formatMinutes(double minutes) {
+    final hrs = (minutes / 60).floor();
+    final mins = (minutes % 60).round();
+    return hrs > 0 ? '${hrs}h ${mins}m' : '${mins}m';
+  }
+
   Future<void> _fetchHistory(String groupId) async {
     if (_historyLoaded) return;
     final uid = FirebaseAuth.instance.currentUser?.uid;
@@ -143,7 +152,7 @@ class HomeScreenState extends State<HomeScreen> {
       debugPrint('History fetch error: $e');
     }
   }
-  // Returns groupId string if user is in a group, null otherwise
+
   Future<String?> _fetchGroupId() async {
     final userId = FirebaseAuth.instance.currentUser?.uid;
     if (userId == null) return null;
@@ -155,7 +164,6 @@ class HomeScreenState extends State<HomeScreen> {
     return groupId;
   }
 
-  // Reads the single pre-aggregated leaderboard doc for this group
   Future<DocumentSnapshot> _fetchLeaderboard(String groupId) {
     return FirebaseFirestore.instance
         .collection('groups')
@@ -188,76 +196,93 @@ class HomeScreenState extends State<HomeScreen> {
     ).then((_) => _refreshGroupStatus());
   }
 
-  // ===== permissions (unchanged) =====
+  // ===== permissions ===== //TODO: requestUsageStatsPermission currently triggers multiple times and text popup does not show first
   Future<void> requestPermissions() async {
-    await requestNotificationPermission();
     await requestUsageStatsPermission();
+    await requestNotificationPermission();
+    await requestBatteryOptimizationExemption();
+  }
+  // for some reason usagestats pops up twice
+  Future<void> requestUsageStatsPermission() async {
+    final hasUsageAccess = await ScreenTimeService.checkUsageStatsGranted();
+    if (!hasUsageAccess && mounted) {
+      final confirmed = await showPermissionDialog(
+        title: 'SCREEN TIME ACCESS',
+        message: 'This app needs access to your usage stats to track '
+            'screen time. Tap "Open Settings", find this app, '
+            'and toggle on "Permit usage access".',
+        confirmLabel: 'Open Settings',
+      );
+      if (confirmed) await openAppSettings();
+    }
   }
 
   Future<void> requestNotificationPermission() async {
     final status = await Permission.notification.status;
-    if (status.isDenied) {
-      final result = await Permission.notification.request();
-      if (result.isPermanentlyDenied && mounted) {
-        showPermissionDialog(
-          title: 'Notifications Blocked',
-          message:
-              'Notifications are permanently blocked. Please enable them in your device settings to receive leaderboard updates.',
-          onConfirm: () => openAppSettings(),
-        );
-      }
-    }
-  }
-
-  Future<void> requestUsageStatsPermission() async {
-    final hasUsageAccess = await ScreenTimeService.checkUsageStatsGranted();
-    if (!hasUsageAccess && mounted) {
-      showPermissionDialog(
-        title: 'Screen Time Access Required',
-        message:
-            'This app needs access to your usage stats to track screen time. '
-            'Tap "Open Settings", then find this app and toggle on "Permit usage access".',
-        onConfirm: () async {
-          await Permission.manageExternalStorage.request();
-          openAppSettings();
-        },
+    if (status.isDenied && mounted) {
+      final confirmed = await showPermissionDialog(
+        title: 'NOTIFICATIONS',
+        message: 'Enable notifications to get leaderboard updates '
+            'even when the app is closed.',
+        confirmLabel: 'Allow',
+      );
+      if (confirmed) await Permission.notification.request();
+    } else if (status.isPermanentlyDenied && mounted) {
+      final confirmed = await showPermissionDialog(
+        title: 'NOTIFICATIONS BLOCKED',
+        message: 'Notifications are permanently blocked. Enable them '
+            'in your device settings to receive leaderboard updates.',
         confirmLabel: 'Open Settings',
       );
+      if (confirmed) await openAppSettings();
     }
   }
 
-  void showPermissionDialog({
-    required String title,
-    required String message,
-    required VoidCallback onConfirm,
-    String confirmLabel = 'Allow',
-  }) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(title),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Not Now'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              onConfirm();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryBright,
-              foregroundColor: Colors.white,
-            ),
-            child: Text(confirmLabel),
-          ),
-        ],
-      ),
-    );
+  Future<void> requestBatteryOptimizationExemption() async {
+    if (await Permission.ignoreBatteryOptimizations.isDenied && mounted) {
+      final confirmed = await showPermissionDialog(
+        title: 'BACKGROUND SYNC',
+        message: 'To keep the leaderboard updated while the app is '
+            'closed, please allow this app to run in the background.',
+        confirmLabel: 'Allow',
+      );
+      if (confirmed) await Permission.ignoreBatteryOptimizations.request();
+    }
   }
+
+  Future<bool> showPermissionDialog({
+  required String title,
+  required String message,
+  String confirmLabel = 'Allow',
+}) async {
+  final result = await showDialog<bool>(
+    context: context,
+    barrierDismissible: false,
+    builder: (dialogContext) => AlertDialog(
+      backgroundColor: AppColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: AppBorders.radius,
+        side: AppBorders.thin,
+      ),
+      title: Text(title, style: AppTextStyles.heading()),
+      content: Text(message, style: AppTextStyles.body(color: AppColors.textSecondary)),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext, false),
+          child: Text('Not Now', style: AppTextStyles.body()),
+        ),
+        ElevatedButton(
+          onPressed: () => Navigator.pop(dialogContext, true),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+          ),
+          child: Text(confirmLabel, style: AppTextStyles.body()),
+        ),
+      ],
+    ),
+  );
+  return result ?? false;
+}
 
   // ===== build =====
   @override
@@ -314,7 +339,7 @@ class HomeScreenState extends State<HomeScreen> {
                       if (entries.isEmpty) {
                         return Center(
                           child: Text(
-                            'No data yet — tap refresh to upload your screentime!', //TODO: update this text as there will be no update button on final version
+                            'No data yet!', 
                             style: AppTextStyles.body(
                                 color: AppColors.textSecondary),
                             textAlign: TextAlign.center,
@@ -334,7 +359,6 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   // ===== header =====
-
   Widget _buildHeader() {
   return Container(
     color: AppColors.background,
@@ -351,12 +375,12 @@ class HomeScreenState extends State<HomeScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text('LEADERBOARD', textAlign: TextAlign.center, style: AppTextStyles.display()),
-              IconButton( //TODO: testing button
-                icon: const Icon(Icons.refresh,
-                    color: AppColors.textPrimary, size: 22),
-                tooltip: 'Refresh',
-                onPressed: _uploadAndRefresh,
-              ),
+              // IconButton( // testing button
+              //   icon: const Icon(Icons.refresh,
+              //       color: AppColors.textPrimary, size: 22),
+              //   tooltip: 'Refresh',
+              //   onPressed: _uploadAndRefresh,
+              // ),
             ],
           ),
         ),
@@ -378,21 +402,6 @@ class HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
-              // Expanded(
-              //   child: OutlinedButton.icon(
-              //     onPressed: () => Authentication.signOut(context: context),
-              //     icon: const Icon(Icons.logout,
-              //         size: 16, color: AppColors.textPrimary),
-              //     label: Text('SIGN OUT',
-              //         style: AppTextStyles.label(color: AppColors.textPrimary)),
-              //     style: OutlinedButton.styleFrom(
-              //       padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-              //       side: const BorderSide(color: AppColors.primaryLight, width: 1),
-              //       shape: const RoundedRectangleBorder(borderRadius: AppBorders.radius),
-              //     ),
-              //   ),
-              // ),
             ],
           ),
         ),
@@ -402,7 +411,6 @@ class HomeScreenState extends State<HomeScreen> {
 }
 
   // ===== no group prompt =====
-
   Widget _buildNoGroupPrompt() {
     return Center(
       child: Padding(
@@ -441,7 +449,6 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   // ===== leaderboard table =====
-
   Widget _buildLeaderboard(List<dynamic> entries, User? user) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -594,11 +601,7 @@ class HomeScreenState extends State<HomeScreen> {
                                     (group, groupIndex, rod, rodIndex) {
                                   final label =
                                       rodIndex == 0 ? 'You' : 'Group Avg';
-                                  final hrs = (rod.toY / 60).floor();
-                                  final mins = (rod.toY % 60).round();
-                                  final timeStr = hrs > 0
-                                      ? '${hrs}h ${mins}m'
-                                      : '${mins}m';
+                                  final timeStr = _formatMinutes(rod.toY);
                                   return BarTooltipItem(
                                     '$label\n$timeStr',
                                     AppTextStyles.label(
@@ -630,11 +633,7 @@ class HomeScreenState extends State<HomeScreen> {
                                   showTitles: true,
                                   reservedSize: 44,
                                   getTitlesWidget: (value, meta) {
-                                    final hrs = (value / 60).floor();
-                                    final mins = (value % 60).round();
-                                    final label = hrs > 0
-                                        ? '${hrs}h${mins > 0 ? ' ${mins}m' : ''}'
-                                        : '${mins}m';
+                                    final label = _formatMinutes(value);
                                     return Text(label,
                                         style: AppTextStyles.label(
                                             color: AppColors.textMuted));
@@ -705,7 +704,6 @@ class HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildStatsTable(List<dynamic> entries, User? user) {
-    // Compute personal and group average from the already-fetched entries
     final myEntry = entries.firstWhere(
       (e) => (e as Map<String, dynamic>)['uid'] == user?.uid,
       orElse: () => null,
@@ -715,26 +713,24 @@ class HomeScreenState extends State<HomeScreen> {
         ? (myEntry['totalBadMinutes'] as num?)?.toDouble() ?? 0
         : 0.0;
 
-    final totalMinutes = entries.fold<double>(
-      0,
-      (sum, e) => sum + ((e['totalBadMinutes'] as num?)?.toDouble() ?? 0),
+    // Exclude the current user's entry entirely before computing group avg
+    final otherEntries = entries
+        .where((e) => (e as Map<String, dynamic>)['uid'] != user?.uid)
+        .toList();
+
+    final otherTotal = otherEntries.fold<double>(
+      0, (sum, e) => sum + ((e['totalBadMinutes'] as num?)?.toDouble() ?? 0),
     );
-    final groupAvg =
-        entries.isNotEmpty ? totalMinutes / entries.length : 0.0;
+    final groupAvg = otherEntries.isNotEmpty
+        ? otherTotal / otherEntries.length
+        : 0.0;
+
     final delta = myMinutes - groupAvg;
 
-    // Format minutes as Xhr Ym
-    String fmt(double minutes) {
-      final hrs = (minutes / 60).floor();
-      final mins = (minutes % 60).round();
-      return hrs > 0 ? '${hrs}h ${mins}m' : '${mins}m';
-    }
-
     final deltaStr = delta >= 0
-        ? '+${fmt(delta)} above avg'
-        : '-${fmt(delta.abs())} below avg';
-    final deltaColor =
-        delta > 0 ? AppColors.error : AppColors.success;
+        ? '+${_formatMinutes(delta)} above avg'
+        : '-${_formatMinutes(delta.abs())} below avg';
+    final deltaColor = delta > 0 ? AppColors.error : AppColors.success;
 
     return Container(
       decoration: BoxDecoration(
@@ -768,7 +764,7 @@ class HomeScreenState extends State<HomeScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('You', style: AppTextStyles.body()),
-                Text(fmt(myMinutes),
+                Text(_formatMinutes(myMinutes),
                     style: AppTextStyles.mono(
                         color: AppColors.primaryBright)),
               ],
@@ -789,7 +785,7 @@ class HomeScreenState extends State<HomeScreen> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text('Group Avg', style: AppTextStyles.body()),
-                Text(fmt(groupAvg),
+                Text(_formatMinutes(groupAvg),
                     style: AppTextStyles.mono(
                         color: AppColors.textSecondary)),
               ],
@@ -830,12 +826,7 @@ class HomeScreenState extends State<HomeScreen> {
     required bool isCurrentUser,
     required List<dynamic>? badAppsData,
   }) {
-    // Format minutes into Xhr Ym or just Ym
-    final hrs = (totalMinutes / 60).floor();
-    final mins = (totalMinutes % 60).round();
-    final timeStr =
-        hrs > 0 ? '${hrs}h ${mins}m' : '${mins}m';
-
+    final timeStr = _formatMinutes(totalMinutes);
     return Column(
       children: [
         Theme(

@@ -6,7 +6,6 @@ import 'package:leaderboard/screens/user_stats_screen.dart';
 
 import 'package:leaderboard/utils/authentication.dart';
 import 'package:leaderboard/utils/screen_time.dart';
-import 'package:leaderboard/screens/home_screen.dart';
 import 'package:leaderboard/assets/design.dart';
 
 /*
@@ -34,10 +33,8 @@ class SettingsScreenState extends State<SettingsScreen> {
 
   Map<String, List<String>> _appVotes = {};
 
-  final List<String> _badAppDisplayNames = ScreenTimeService.badApps.values
-    .toSet()
-    .toList()
-    ..sort();
+  final List<String> _badAppDisplayNames =
+  ScreenTimeService.badApps.values.toSet().toList();
 
   @override
   void initState() {
@@ -215,7 +212,7 @@ class SettingsScreenState extends State<SettingsScreen> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text('SETTINGS & INFO', textAlign: TextAlign.center, style: AppTextStyles.display()),
-              // IconButton( //TODO: testing button
+              // IconButton( // testing button
               //   icon: const Icon(Icons.timer,
               //       color: AppColors.textPrimary, size: 22),
               //   tooltip: 'usagedata',
@@ -233,8 +230,7 @@ class SettingsScreenState extends State<SettingsScreen> {
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () => Navigator.push(context,
-                      MaterialPageRoute(builder: (_) => const HomeScreen())),
+                  onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.home,
                       size: 16, color: AppColors.textPrimary),
                   label: Text('HOME SCREEN',
@@ -408,9 +404,8 @@ class SettingsScreenState extends State<SettingsScreen> {
                 final voteStr = _voteCount(appName);
                 return Row(
                   children: [
-                    const SizedBox(width: AppSpacing.md),
                     const SizedBox(width: AppSpacing.sm),
-                    Expanded( //TODO: order this in chronological not alphabetical order
+                    Expanded(
                       child: Text(appName,
                           style: AppTextStyles.body()),
                     ),
@@ -431,16 +426,11 @@ class SettingsScreenState extends State<SettingsScreen> {
           // Leave group
           OutlinedButton.icon(
             onPressed: leaveGroup,
-            icon: const Icon(Icons.exit_to_app,
-                size: 16, color: AppColors.error),
-            label: Text('LEAVE GROUP',
-                style: AppTextStyles.label(color: AppColors.error)),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: AppColors.primaryLight, width: 1),
-              shape: const RoundedRectangleBorder(
-                  borderRadius: AppBorders.radius),
-              padding:
-                  const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            icon: const Icon(Icons.exit_to_app, size: 16, color: AppColors.error),
+            label: Text('LEAVE GROUP', style: AppTextStyles.label(color: AppColors.error)),
+            style: OutlinedButton.styleFrom(side: const BorderSide(color: AppColors.primaryLight, width: 1),
+              shape: const RoundedRectangleBorder(borderRadius: AppBorders.radius),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
             ),
           ),
         ],
@@ -588,17 +578,7 @@ class SettingsScreenState extends State<SettingsScreen> {
                 return;
               }
 
-              // DEBUG
-              final user = FirebaseAuth.instance.currentUser;
-              //debugPrint('=== CREATE DEBUG ===');
-              //debugPrint('user uid: ${user?.uid}');
-              final token = await user?.getIdToken(true); // true forces a fresh token
-              //debugPrint('token is null: ${token == null}');
-              //debugPrint('token preview: ${token?.substring(0, 20)}');
-
-
               try {
-                //debugPrint('=== CALLING FUNCTION ===');
                 final result = await FirebaseFunctions.instanceFor(region: 'us-central1')
                     .httpsCallable('createGroup')
                     .call({
@@ -606,8 +586,6 @@ class SettingsScreenState extends State<SettingsScreen> {
                   'nameLower': nameController.text.trim().toLowerCase(),
                   'password': passwordController.text,
               });
-              //debugPrint('=== FUNCTION SUCCESS ===');
-              //debugPrint('result: ${result.data}');
                 final groupId = result.data['groupId'] as String;
                 Navigator.pop(dialogContext);
                 setState(() {
@@ -621,27 +599,20 @@ class SettingsScreenState extends State<SettingsScreen> {
                 ScaffoldMessenger.of(scaffoldContext).showSnackBar(
                   SnackBar(content: Text('Created group: ${nameController.text.trim()}')));
               } on FirebaseFunctionsException catch (e) {
-                //debugPrint('=== FUNCTIONS EXCEPTION ===');
-                //debugPrint('code: ${e.code}');
-                //debugPrint('message: ${e.message}');
-                //debugPrint('details: ${e.details}');
                 Navigator.pop(dialogContext);
                 await Authentication.showErrorDialog(
                     context: scaffoldContext,
                     message: e.code == 'already-exists'
                         ? 'A group with that name already exists.'
                         : 'Error creating group: ${e.message}');
-              } catch (e, stackTrace) {
-                //debugPrint('=== GENERIC EXCEPTION ===');
-                //debugPrint('error: $e');
-                //debugPrint('stack: $stackTrace');
+              } catch (e) {
                 Navigator.pop(dialogContext);
                 await Authentication.showErrorDialog(
                     context: scaffoldContext,
                     message: 'Error creating group: $e');
               }
             },
-            child: const Text('Create', style: TextStyle(color: AppColors.textPrimary)),
+            child: Text('Create', style: AppTextStyles.body()),
           ),
         ],
       ),
@@ -674,17 +645,9 @@ class SettingsScreenState extends State<SettingsScreen> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.success,
-              // foregroundColor: AppColors.textPrimary,
             ),
             onPressed: () async {
               try {
-                // final user = FirebaseAuth.instance.currentUser;
-                // //debugPrint('=== JOIN DEBUG ===');
-                // //debugPrint('user uid: ${user?.uid}');
-                // //debugPrint('user email: ${user?.email}');
-                // final token = await user?.getIdToken();
-                // //debugPrint('token is null: ${token == null}');
-                // //debugPrint('groupId being sent: $groupId');
                 final result = await FirebaseFunctions.instanceFor(region: 'us-central1')
                     .httpsCallable('joinGroup')
                     .call({
@@ -788,7 +751,6 @@ void leaveGroup() {
   }
 
   // Collapsible subsection used inside group settings
-  //TODO: is this redundant? it seems like the whole thing is rewritten inside of _inGroupOptions
   Widget _buildSubSection({
     required IconData icon,
     required String title,
@@ -797,7 +759,7 @@ void leaveGroup() {
   }) {
     return Container(
       decoration: BoxDecoration(
-        border: Border.all(width: 1),
+        border: AppBorders.box,
         borderRadius: AppBorders.radius,
       ),
       child: Theme(
@@ -904,17 +866,13 @@ void leaveGroup() {
           // Sign out
           OutlinedButton.icon(
             onPressed: signOut,
-            icon: const Icon(Icons.logout,
-                size: 16, color: AppColors.error),
-            label: Text('SIGN OUT',
-                style: AppTextStyles.label(color: AppColors.error)),
+            icon: const Icon(Icons.logout, size: 16, color: AppColors.error),
+            label: Text('SIGN OUT', style: AppTextStyles.label(color: AppColors.error)),
             style: OutlinedButton.styleFrom(
               minimumSize: const Size(double.infinity, 0), // add this
               side: const BorderSide(color: AppColors.primaryLight, width: 1),
-              shape: const RoundedRectangleBorder(
-                  borderRadius: AppBorders.radius),
-              padding:
-                  const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+              shape: const RoundedRectangleBorder(borderRadius: AppBorders.radius),
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
             ),
           ),
         ],

@@ -1,4 +1,3 @@
-// import 'package:flutter/material.dart';
 import 'package:app_usage/app_usage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -9,7 +8,7 @@ screen_time.dart - service class for screentime data
 - groups apps by display name (e.g. merges all browsers)
 - uploads results to firestore
 */
-// TODO: update the ios folder to pull the same screentime data (do I need a new package?)
+// TODO: update all of this for ios (later me problem)
 // - pretty sure that this whole file is gonna have to be rewritten for ios but whateva
 class ScreenTimeService {
   static const Map<String, String> badApps = {
@@ -90,7 +89,6 @@ class ScreenTimeService {
       'totalBadMinutes': totalBadMinutes,
       'badAppsBreakdown': badAppsBreakdown,
       'lastUpdated': FieldValue.serverTimestamp(),
-      //'username': user.email,
     });
   }
 }

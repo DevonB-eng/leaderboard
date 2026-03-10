@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'package:leaderboard/assets/design.dart';
-import 'package:leaderboard/utils/authentication.dart';
 import 'package:leaderboard/widgets/email_sign_in_button.dart';
 
 /*
@@ -9,12 +8,8 @@ sign_in_screen.dart - the screen that users see when they are not authenticated
 - has a button to sign in with email (maybe add some other authentication but idk...)
 */
 
-class SignInScreen extends StatefulWidget {
-  @override
-  _SignInScreenState createState() => _SignInScreenState();
-}
-
-class _SignInScreenState extends State<SignInScreen> {
+class SignInScreen extends StatelessWidget {
+  const SignInScreen({super.key});
   @override
   Widget build(BuildContext context) {
     return Scaffold(

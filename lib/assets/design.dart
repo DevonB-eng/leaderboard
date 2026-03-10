@@ -81,7 +81,6 @@ class AppTextStyles {
 }
 
 // ===== borders =====
-
 class AppBorders {
   AppBorders._();
 
@@ -107,8 +106,6 @@ class AppBorders {
 }
 
 // ===== spacing =====
-// Named spacing constants so padding values are consistent throughout the app
-
 class AppSpacing {
   AppSpacing._();
 
@@ -121,8 +118,6 @@ class AppSpacing {
 }
 
 // ===== theme =====
-// Pass AppTheme.dark() into MaterialApp's theme parameter
-
 class AppTheme {
   AppTheme._();
 
