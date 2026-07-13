@@ -8,16 +8,14 @@ environment:
 
 dependencies:
   app_usage: ^4.0.1
-  cloud_firestore: ^6.1.2
-  cloud_functions: ^6.0.7
-  firebase_auth: ^6.1.4
-  firebase_core: ^4.4.0
+  crypto: ^3.0.6
   fl_chart: ^1.1.1
   flutter:
     sdk: flutter
+  flutter_riverpod: ^2.6.1
   google_fonts: ^8.0.2
-  google_sign_in: ^7.2.0
   permission_handler: ^12.0.1
+  supabase_flutter: ^2.12.2
   workmanager: ^0.9.0+3
 
 dev_dependencies:

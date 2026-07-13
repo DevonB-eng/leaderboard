@@ -27,6 +27,16 @@ lib/firebase_options.dart
 # is commented out by default.
 #.vscode/
 
+# Node / Firebase Functions dependencies
+node_modules/
+functions/node_modules/
+
+# Supabase related
+lib/core/config/supabase_config.dart
+supabase/.temp/
+supabase/.branches/
+supabase/.env
+
 # Flutter/Dart/Pub related
 **/doc/api/
 **/ios/Flutter/.last_build_id

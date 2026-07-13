@@ -1,0 +1,26 @@
+const Map<String, String> badApps = {
+  'com.instagram.android': 'Instagram',
+  'com.facebook.katana': 'Facebook',
+  'com.snapchat.android': 'Snapchat',
+  'com.zhiliaoapp.musically': 'TikTok',
+  'com.twitter.android': 'Twitter',
+  'com.x.android': 'X',
+  'com.google.android.youtube': 'YouTube',
+  'com.strava': 'Strava',
+  'com.reddit.frontpage': 'Reddit',
+  'com.linkedin.android': 'LinkedIn',
+  'com.facebook.orca': 'Messenger',
+  'com.discord': 'Discord',
+  'com.android.chrome': 'Browser',
+  'org.mozilla.firefox': 'Browser',
+  'com.microsoft.emmx': 'Browser',
+  'com.opera.browser': 'Browser',
+  'com.brave.browser': 'Browser',
+  'com.duckduckgo.mobile.android': 'Browser',
+  'com.google.android.googlequicksearchbox': 'Browser',
+  'com.tinder': 'Tinder',
+  'com.bumble.app': 'Bumble',
+  'co.hinge.app': 'Hinge',
+};
+
+List<String> get badAppDisplayNames => badApps.values.toSet().toList();

@@ -1,29 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:leaderboard/utils/authentication.dart';
-import 'package:leaderboard/assets/design.dart';
+import 'package:leaderboard/core/theme/app_theme.dart';
+import 'package:leaderboard/providers/repository_providers.dart';
 
-/*
-email_sign_in_button.dart - the button that users click to sign in with email
-- when clicked, shows a dialog where users can enter their email and password to sign in or sign up
-- also has a loading state while signing in which is super pimp
-*/
+class EmailSignInButton extends ConsumerStatefulWidget {
+  const EmailSignInButton({super.key});
 
-class EmailSignInButton extends StatefulWidget {
   @override
-  _EmailSignInButtonState createState() => _EmailSignInButtonState();
+  ConsumerState<EmailSignInButton> createState() => _EmailSignInButtonState();
 }
 
-class _EmailSignInButtonState extends State<EmailSignInButton> {
+class _EmailSignInButtonState extends ConsumerState<EmailSignInButton> {
   bool _isSigningIn = false;
 
   void _showEmailPasswordDialog() {
-    final TextEditingController nameController = TextEditingController();
-    final TextEditingController emailController = TextEditingController();
-    final TextEditingController passwordController = TextEditingController();
-    bool isSignUp = false;
-
-    // Capture scaffold context here, before the dialog opens
+    final nameController = TextEditingController();
+    final emailController = TextEditingController();
+    final passwordController = TextEditingController();
+    var isSignUp = false;
     final scaffoldContext = context;
 
     showDialog(
@@ -35,8 +30,10 @@ class _EmailSignInButtonState extends State<EmailSignInButton> {
             borderRadius: AppBorders.radius,
             side: AppBorders.thin,
           ),
-          title: Text(isSignUp ? 'Sign Up with Email' : 'Sign In with Email', 
-          style: AppTextStyles.heading()),
+          title: Text(
+            isSignUp ? 'Sign Up with Email' : 'Sign In with Email',
+            style: AppTextStyles.heading(),
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -44,40 +41,36 @@ class _EmailSignInButtonState extends State<EmailSignInButton> {
                 TextField(
                   controller: nameController,
                   style: AppTextStyles.body(),
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'Username',
                     border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.name,
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
               ],
               TextField(
                 controller: emailController,
                 style: AppTextStyles.body(),
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Email',
                   border: OutlineInputBorder(),
                 ),
                 keyboardType: TextInputType.emailAddress,
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               TextField(
                 controller: passwordController,
                 style: AppTextStyles.body(),
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Password',
                   border: OutlineInputBorder(),
                 ),
                 obscureText: true,
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               TextButton(
-                onPressed: () {
-                  setDialogState(() {
-                    isSignUp = !isSignUp;
-                  });
-                },
+                onPressed: () => setDialogState(() => isSignUp = !isSignUp),
                 child: Text(
                   isSignUp
                       ? 'Already have an account? Sign In'
@@ -93,49 +86,40 @@ class _EmailSignInButtonState extends State<EmailSignInButton> {
               child: Text('Cancel', style: AppTextStyles.body()),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.success,
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: AppColors.success),
               onPressed: () async {
-                // Validate username before doing anything
                 if (isSignUp && nameController.text.trim().isEmpty) {
-                  await Authentication.showErrorDialog(
-                    context: dialogContext,
-                    message: 'Please enter a username.',
-                  );
+                  await ref.read(authRepositoryProvider).showErrorDialog(
+                        context: dialogContext,
+                        message: 'Please enter a username.',
+                      );
                   return;
                 }
 
-                // Close dialog first, then start loading
                 Navigator.pop(dialogContext);
-                setState(() {
-                  _isSigningIn = true;
-                });
+                setState(() => _isSigningIn = true);
 
                 try {
+                  final auth = ref.read(authRepositoryProvider);
                   if (isSignUp) {
-                    await Authentication.signUpwithEmailAndPassword(
+                    await auth.signUpWithEmailAndPassword(
                       context: scaffoldContext,
                       username: nameController.text.trim(),
                       email: emailController.text.trim(),
                       password: passwordController.text,
                     );
                   } else {
-                    await Authentication.signInWithEmailAndPassword(
+                    await auth.signInWithEmailAndPassword(
                       context: scaffoldContext,
                       email: emailController.text.trim(),
                       password: passwordController.text,
                     );
                   }
                 } finally {
-                  // finally ensures _isSigningIn is ALWAYS set to false
-                  // even if an unexpected exception slips through
-                  setState(() {
-                    _isSigningIn = false;
-                  });
+                  if (mounted) setState(() => _isSigningIn = false);
                 }
               },
-              child: Text(isSignUp ? 'Sign Up' : 'Sign In', style: AppTextStyles.body(),),
+              child: Text(isSignUp ? 'Sign Up' : 'Sign In', style: AppTextStyles.body()),
             ),
           ],
         ),
@@ -148,18 +132,16 @@ class _EmailSignInButtonState extends State<EmailSignInButton> {
     return Padding(
       padding: const EdgeInsets.all(AppSpacing.sm),
       child: _isSigningIn
-          ? CircularProgressIndicator(
+          ? const CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryBright),
             )
           : ElevatedButton(
               style: OutlinedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 0), // add this
+                minimumSize: const Size(double.infinity, 0),
                 side: const BorderSide(color: AppColors.primaryLight, width: 1),
                 backgroundColor: AppColors.surface,
-                shape: const RoundedRectangleBorder(
-                    borderRadius: AppBorders.radius),
-                padding:
-                    const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                shape: const RoundedRectangleBorder(borderRadius: AppBorders.radius),
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
               ),
               onPressed: _showEmailPasswordDialog,
               child: Padding(
@@ -167,14 +149,11 @@ class _EmailSignInButtonState extends State<EmailSignInButton> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: <Widget>[
-                    Icon(Icons.email, size: 35),
+                  children: [
+                    const Icon(Icons.email, size: 35),
                     Padding(
                       padding: const EdgeInsets.only(left: 10),
-                      child: Text(
-                        'Sign in with Email',
-                        style: AppTextStyles.body()
-                      ),
+                      child: Text('Sign in with Email', style: AppTextStyles.body()),
                     ),
                   ],
                 ),
