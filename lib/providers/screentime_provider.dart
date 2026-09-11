@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:leaderboard/providers/group_provider.dart';
 import 'package:leaderboard/providers/history_provider.dart';
 import 'package:leaderboard/providers/leaderboard_provider.dart';
 import 'package:leaderboard/providers/repository_providers.dart';
@@ -27,5 +26,5 @@ class ScreentimeSyncNotifier extends StateNotifier<AsyncValue<void>> {
 
 final screentimeSyncProvider =
     StateNotifierProvider<ScreentimeSyncNotifier, AsyncValue<void>>((ref) {
-  return ScreentimeSyncNotifier(ref);
-});
+      return ScreentimeSyncNotifier(ref);
+    });

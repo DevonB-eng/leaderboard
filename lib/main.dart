@@ -15,24 +15,15 @@ Future<void> main() async {
     anonKey: SupabaseConfig.anonKey,
   );
 
-  await Workmanager().initialize(
-    callbackDispatcher,
-    isInDebugMode: false,
-  );
+  await Workmanager().initialize(callbackDispatcher);
 
   await Workmanager().registerPeriodicTask(
     kSyncTaskName,
     kSyncTaskName,
     frequency: const Duration(minutes: 15),
     existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
-    constraints: Constraints(
-      networkType: NetworkType.connected,
-    ),
+    constraints: Constraints(networkType: NetworkType.connected),
   );
 
-  runApp(
-    const ProviderScope(
-      child: AppUsageApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: AppUsageApp()));
 }

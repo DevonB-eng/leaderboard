@@ -52,12 +52,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.home, size: 16, color: AppColors.textPrimary),
-                      label: Text('HOME SCREEN', style: AppTextStyles.body()),
+                      icon: const Icon(
+                        Icons.home,
+                        size: 16,
+                        color: AppColors.textPrimary,
+                      ),
+                      label: Text(
+                        'HOME SCREEN',
+                        style: AppTextStyles.body(color: AppColors.textPrimary),
+                      ),
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                        side: const BorderSide(color: AppColors.primaryLight, width: 1),
-                        shape: const RoundedRectangleBorder(borderRadius: AppBorders.radius),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppSpacing.sm,
+                        ),
+                        side: const BorderSide(
+                          color: AppColors.textPrimary,
+                          width: 1,
+                        ),
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: AppBorders.radius,
+                        ),
                       ),
                     ),
                   ),
@@ -77,11 +91,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ),
                       error: (e, _) => Padding(
                         padding: const EdgeInsets.all(AppSpacing.md),
-                        child: Text('Error: $e', style: AppTextStyles.body(color: AppColors.error)),
+                        child: Text(
+                          'Error: $e',
+                          style: AppTextStyles.body(color: AppColors.error),
+                        ),
                       ),
                       data: (group) {
                         if (group == null) {
-                          return GroupJoinSection(onGroupChanged: _onGroupChanged);
+                          return GroupJoinSection(
+                            onGroupChanged: _onGroupChanged,
+                          );
                         }
                         return membersAsync.when(
                           loading: () => GroupManageSection(

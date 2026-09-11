@@ -29,11 +29,17 @@ class AuthRepository {
             borderRadius: AppBorders.radius,
             side: const BorderSide(color: AppColors.error, width: 1.0),
           ),
-          title: Text('ERROR', style: AppTextStyles.heading(color: AppColors.error)),
+          title: Text(
+            'ERROR',
+            style: AppTextStyles.heading(color: AppColors.error),
+          ),
           content: Text(message, style: AppTextStyles.body()),
           actions: [
             TextButton(
-              child: Text('OK', style: AppTextStyles.body(color: AppColors.error)),
+              child: Text(
+                'OK',
+                style: AppTextStyles.body(color: AppColors.error),
+              ),
               onPressed: () => Navigator.of(dialogContext).pop(),
             ),
           ],
@@ -72,15 +78,18 @@ class AuthRepository {
       return user;
     } on AuthException catch (e) {
       final msg = e.message.toLowerCase();
-      if (msg.contains('rate limit') || msg.contains('email rate limit exceeded')) {
+      if (msg.contains('rate limit') ||
+          msg.contains('email rate limit exceeded')) {
         await showErrorDialog(
           context: context,
-          message: 'Too many signup attempts in a short time. Wait a minute and try again.',
+          message:
+              'Too many signup attempts in a short time. Wait a minute and try again.',
         );
       } else if (msg.contains('password')) {
         await showErrorDialog(
           context: context,
-          message: 'The password provided is too weak (must be at least 6 characters).',
+          message:
+              'The password provided is too weak (must be at least 6 characters).',
         );
       } else if (msg.contains('already')) {
         await showErrorDialog(
@@ -125,7 +134,8 @@ class AuthRepository {
           context: context,
           message: 'Too many login attempts. Please wait and try again.',
         );
-      } else if (msg.contains('invalid login credentials') || msg.contains('invalid')) {
+      } else if (msg.contains('invalid login credentials') ||
+          msg.contains('invalid')) {
         await showErrorDialog(
           context: context,
           message: 'Incorrect email and/or password.',

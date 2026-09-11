@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:leaderboard/core/theme/app_theme.dart';
 import 'package:leaderboard/core/utils/duration_format.dart';
 import 'package:leaderboard/data/models/leaderboard_entry.dart';
+import 'package:leaderboard/widgets/section_card.dart';
 
 class StatsSummary extends StatelessWidget {
   const StatsSummary({
@@ -25,38 +26,27 @@ class StatsSummary extends StatelessWidget {
     }
 
     final myMinutes = myEntry?.totalBadMinutes ?? 0.0;
-    final otherEntries = entries.where((e) => e.userId != currentUserId).toList();
+    final otherEntries = entries
+        .where((e) => e.userId != currentUserId)
+        .toList();
     final otherTotal = otherEntries.fold<double>(
       0,
       (sum, e) => sum + e.totalBadMinutes,
     );
-    final groupAvg = otherEntries.isNotEmpty ? otherTotal / otherEntries.length : 0.0;
+    final groupAvg = otherEntries.isNotEmpty
+        ? otherTotal / otherEntries.length
+        : 0.0;
     final delta = myMinutes - groupAvg;
     final deltaStr = delta >= 0
         ? '+${formatMinutes(delta)} above avg'
         : '-${formatMinutes(delta.abs())} below avg';
     final deltaColor = delta > 0 ? AppColors.error : AppColors.success;
 
-    return Container(
-      decoration: BoxDecoration(
-        border: AppBorders.box,
-        borderRadius: AppBorders.radius,
-        color: AppColors.surface,
-      ),
+    return SectionCard(
+      title: 'TODAY\'S STATS',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.sm,
-            ),
-            decoration: const BoxDecoration(
-              color: AppColors.primary,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(4)),
-            ),
-            child: Text('TODAY\'S STATS', style: AppTextStyles.heading()),
-          ),
           Padding(
             padding: const EdgeInsets.fromLTRB(
               AppSpacing.md,
@@ -77,7 +67,7 @@ class StatsSummary extends StatelessWidget {
           ),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            child: Divider(height: 1, color: AppColors.primaryLight),
+            child: Divider(height: 1, color: AppColors.primary),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(
@@ -97,7 +87,7 @@ class StatsSummary extends StatelessWidget {
           ),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            child: Divider(height: 1, color: AppColors.primaryLight),
+            child: Divider(height: 1, color: AppColors.primary),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(
@@ -109,7 +99,10 @@ class StatsSummary extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('vs Average', style: AppTextStyles.label(color: AppColors.textSecondary)),
+                Text(
+                  'vs Average',
+                  style: AppTextStyles.label(color: AppColors.textSecondary),
+                ),
                 Text(deltaStr, style: AppTextStyles.mono(color: deltaColor)),
               ],
             ),

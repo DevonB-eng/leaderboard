@@ -12,10 +12,10 @@ class ScreentimeRepository {
     SupabaseClient? client,
     GroupRepository? groupRepository,
     LeaderboardRepository? leaderboardRepository,
-  })  : _client = client ?? supabaseClient,
-        _groupRepository = groupRepository ?? GroupRepository(client: client),
-        _leaderboardRepository =
-            leaderboardRepository ?? LeaderboardRepository(client: client);
+  }) : _client = client ?? supabaseClient,
+       _groupRepository = groupRepository ?? GroupRepository(client: client),
+       _leaderboardRepository =
+           leaderboardRepository ?? LeaderboardRepository(client: client);
 
   final SupabaseClient _client;
   final GroupRepository _groupRepository;
@@ -24,7 +24,10 @@ class ScreentimeRepository {
   static Future<bool> checkUsageStatsGranted() async {
     try {
       final now = DateTime.now();
-      await AppUsage().getAppUsage(now.subtract(const Duration(minutes: 1)), now);
+      await AppUsage().getAppUsage(
+        now.subtract(const Duration(minutes: 1)),
+        now,
+      );
       return true;
     } catch (_) {
       return false;
@@ -98,8 +101,10 @@ class ScreentimeRepository {
         .from('screentime')
         .select()
         .inFilter('user_id', memberIds);
-    final usersRows =
-        await _client.from('users').select().inFilter('id', memberIds);
+    final usersRows = await _client
+        .from('users')
+        .select()
+        .inFilter('id', memberIds);
 
     final screentimeByUid = <String, Map<String, dynamic>>{
       for (final row in screentimeRows) row['user_id'] as String: row,
@@ -125,11 +130,14 @@ class ScreentimeRepository {
         continue;
       }
 
-      final rawBreakdown =
-          List<Map<String, dynamic>>.from(st['bad_apps_breakdown'] ?? []);
+      final rawBreakdown = List<Map<String, dynamic>>.from(
+        st['bad_apps_breakdown'] ?? [],
+      );
       final filteredBreakdown = activeApps == null
           ? rawBreakdown
-          : rawBreakdown.where((e) => activeApps.contains(e['appName'])).toList();
+          : rawBreakdown
+                .where((e) => activeApps.contains(e['appName']))
+                .toList();
       final totalBadMinutes = filteredBreakdown.fold<double>(
         0,
         (sum, item) => sum + ((item['minutes'] as num?)?.toDouble() ?? 0),
@@ -145,8 +153,9 @@ class ScreentimeRepository {
     }
 
     entries.sort(
-      (a, b) => ((b['totalBadMinutes'] as num?) ?? 0)
-          .compareTo((a['totalBadMinutes'] as num?) ?? 0),
+      (a, b) => ((b['totalBadMinutes'] as num?) ?? 0).compareTo(
+        (a['totalBadMinutes'] as num?) ?? 0,
+      ),
     );
 
     await _leaderboardRepository.upsertLeaderboard(
@@ -171,7 +180,8 @@ class ScreentimeRepository {
 
     final withData = entries.where((e) => e['lastUpdated'] != null).toList();
     if (withData.isNotEmpty) {
-      final avg = withData.fold<double>(
+      final avg =
+          withData.fold<double>(
             0,
             (sum, e) => sum + ((e['totalBadMinutes'] as num?)?.toDouble() ?? 0),
           ) /
@@ -184,7 +194,10 @@ class ScreentimeRepository {
     }
   }
 
-  Set<String>? _getActiveApps(Map<String, List<String>> appVotes, int totalMembers) {
+  Set<String>? _getActiveApps(
+    Map<String, List<String>> appVotes,
+    int totalMembers,
+  ) {
     if (appVotes.isEmpty) return null;
     final activeApps = <String>{};
     appVotes.forEach((appName, voters) {

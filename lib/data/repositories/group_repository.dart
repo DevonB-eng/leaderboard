@@ -5,12 +5,17 @@ import 'package:leaderboard/data/supabase/supabase_client.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class GroupRepository {
-  GroupRepository({SupabaseClient? client}) : _client = client ?? supabaseClient;
+  GroupRepository({SupabaseClient? client})
+    : _client = client ?? supabaseClient;
 
   final SupabaseClient _client;
 
   Future<UserProfile?> fetchUser(String userId) async {
-    final row = await _client.from('users').select().eq('id', userId).maybeSingle();
+    final row = await _client
+        .from('users')
+        .select()
+        .eq('id', userId)
+        .maybeSingle();
     if (row == null) return null;
     return UserProfile.fromJson(row);
   }
@@ -21,7 +26,11 @@ class GroupRepository {
   }
 
   Future<Group?> fetchGroup(String groupId) async {
-    final row = await _client.from('groups').select().eq('id', groupId).maybeSingle();
+    final row = await _client
+        .from('groups')
+        .select()
+        .eq('id', groupId)
+        .maybeSingle();
     if (row == null) return null;
     return Group.fromJson(row);
   }
@@ -32,9 +41,9 @@ class GroupRepository {
         .from('groups')
         .select('id, name, member_ids')
         .ilike('name', '$query%');
-    return List<Map<String, dynamic>>.from(results)
-        .map(GroupSummary.fromJson)
-        .toList();
+    return List<Map<String, dynamic>>.from(
+      results,
+    ).map(GroupSummary.fromJson).toList();
   }
 
   Future<void> createGroup({
@@ -64,7 +73,10 @@ class GroupRepository {
         .select()
         .single();
 
-    await _client.from('users').update({'group_id': row['id']}).eq('id', userId);
+    await _client
+        .from('users')
+        .update({'group_id': row['id']})
+        .eq('id', userId);
   }
 
   Future<Group> joinGroup({
@@ -77,7 +89,11 @@ class GroupRepository {
       throw Exception('Group not found.');
     }
 
-    final row = await _client.from('groups').select().eq('id', groupId).maybeSingle();
+    final row = await _client
+        .from('groups')
+        .select()
+        .eq('id', groupId)
+        .maybeSingle();
     final passwordHash = row?['password_hash'] as String?;
     if (passwordHash == null || passwordHash != hashPassword(password)) {
       throw Exception('Incorrect password.');
@@ -86,7 +102,10 @@ class GroupRepository {
     final memberIds = List<String>.from(group.memberIds);
     if (!memberIds.contains(userId)) {
       memberIds.add(userId);
-      await _client.from('groups').update({'member_ids': memberIds}).eq('id', groupId);
+      await _client
+          .from('groups')
+          .update({'member_ids': memberIds})
+          .eq('id', groupId);
     }
     await _client.from('users').update({'group_id': groupId}).eq('id', userId);
 
@@ -105,7 +124,9 @@ class GroupRepository {
     final group = await fetchGroup(groupId);
     if (group == null) return;
 
-    final updatedMemberIds = group.memberIds.where((id) => id != userId).toList();
+    final updatedMemberIds = group.memberIds
+        .where((id) => id != userId)
+        .toList();
 
     if (updatedMemberIds.isEmpty) {
       await _client.from('groups').delete().eq('id', groupId);
@@ -125,7 +146,10 @@ class GroupRepository {
     required String groupId,
     required Map<String, List<String>> appVotes,
   }) async {
-    await _client.from('groups').update({'app_votes': appVotes}).eq('id', groupId);
+    await _client
+        .from('groups')
+        .update({'app_votes': appVotes})
+        .eq('id', groupId);
   }
 
   Future<List<UserProfile>> fetchMembers(List<String> memberIds) async {

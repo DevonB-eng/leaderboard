@@ -36,7 +36,7 @@ class LeaderboardRow extends StatelessWidget {
                 '${index + 1}.',
                 style: AppTextStyles.display(
                   size: 22,
-                  color: isCurrentUser ? AppColors.primaryBright : AppColors.textSecondary,
+                  color: AppColors.textSecondary,
                 ),
               ),
             ),
@@ -46,20 +46,24 @@ class LeaderboardRow extends StatelessWidget {
                   child: Text(
                     entry.username,
                     style: AppTextStyles.body(
-                      color: isCurrentUser ? AppColors.primaryBright : AppColors.textPrimary,
+                      color: isCurrentUser
+                          ? AppColors.primaryBright
+                          : AppColors.textPrimary,
                     ),
                   ),
                 ),
                 Text(
                   timeStr,
-                  style: AppTextStyles.mono(
-                    color: isCurrentUser ? AppColors.primaryBright : AppColors.textPrimary,
-                  ),
+                  style: AppTextStyles.mono(color: AppColors.textPrimary),
                 ),
               ],
             ),
             trailing: badAppsData.isNotEmpty
-                ? const Icon(Icons.expand_more, color: AppColors.primaryLight, size: 18)
+                ? const Icon(
+                    Icons.expand_more,
+                    color: AppColors.primaryLight,
+                    size: 18,
+                  )
                 : const SizedBox(width: 18),
             children: [
               if (badAppsData.isNotEmpty)
@@ -76,7 +80,9 @@ class LeaderboardRow extends StatelessWidget {
                       const SizedBox(height: AppSpacing.xs),
                       ...badAppsData.map((app) {
                         return Padding(
-                          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: AppSpacing.xs,
+                          ),
                           child: Row(
                             children: [
                               const Icon(
@@ -111,7 +117,7 @@ class LeaderboardRow extends StatelessWidget {
             ],
           ),
         ),
-        const Divider(height: 1, color: AppColors.primaryLight),
+        const Divider(height: 1, color: AppColors.primary),
       ],
     );
   }

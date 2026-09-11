@@ -19,7 +19,10 @@ Future<void> showJoinPasswordDialog({
     context: context,
     builder: (dialogContext) => AlertDialog(
       backgroundColor: AppColors.surface,
-      shape: RoundedRectangleBorder(borderRadius: AppBorders.radius, side: AppBorders.thin),
+      shape: RoundedRectangleBorder(
+        borderRadius: AppBorders.radius,
+        side: AppBorders.thin,
+      ),
       title: Text('JOIN $groupName', style: AppTextStyles.heading()),
       content: TextField(
         controller: passwordController,
@@ -41,7 +44,9 @@ Future<void> showJoinPasswordDialog({
             try {
               final userId = ref.read(authRepositoryProvider).currentUser?.id;
               if (userId == null) throw Exception('Not signed in.');
-              await ref.read(groupRepositoryProvider).joinGroup(
+              await ref
+                  .read(groupRepositoryProvider)
+                  .joinGroup(
                     userId: userId,
                     groupId: groupId,
                     password: passwordController.text,
@@ -49,21 +54,26 @@ Future<void> showJoinPasswordDialog({
               if (dialogContext.mounted) Navigator.pop(dialogContext);
               onJoined();
               if (scaffoldContext.mounted) {
-                ScaffoldMessenger.of(scaffoldContext).showSnackBar(
-                  SnackBar(content: Text('Joined $groupName')),
-                );
+                ScaffoldMessenger.of(
+                  scaffoldContext,
+                ).showSnackBar(SnackBar(content: Text('Joined $groupName')));
               }
             } catch (e) {
               if (dialogContext.mounted) Navigator.pop(dialogContext);
               if (scaffoldContext.mounted) {
-                await ref.read(authRepositoryProvider).showErrorDialog(
+                await ref
+                    .read(authRepositoryProvider)
+                    .showErrorDialog(
                       context: scaffoldContext,
                       message: 'Error joining group: $e',
                     );
               }
             }
           },
-          child: Text('Join', style: AppTextStyles.label(color: AppColors.textPrimary)),
+          child: Text(
+            'Join',
+            style: AppTextStyles.label(color: AppColors.textPrimary),
+          ),
         ),
       ],
     ),
@@ -119,8 +129,11 @@ Future<void> showCreateGroupDialog({
         ElevatedButton(
           style: ElevatedButton.styleFrom(backgroundColor: AppColors.success),
           onPressed: () async {
-            if (nameController.text.isEmpty || passwordController.text.isEmpty) {
-              await ref.read(authRepositoryProvider).showErrorDialog(
+            if (nameController.text.isEmpty ||
+                passwordController.text.isEmpty) {
+              await ref
+                  .read(authRepositoryProvider)
+                  .showErrorDialog(
                     context: dialogContext,
                     message: 'Please fill in all fields.',
                   );
@@ -130,7 +143,9 @@ Future<void> showCreateGroupDialog({
             try {
               final userId = ref.read(authRepositoryProvider).currentUser?.id;
               if (userId == null) throw Exception('Not signed in.');
-              await ref.read(groupRepositoryProvider).createGroup(
+              await ref
+                  .read(groupRepositoryProvider)
+                  .createGroup(
                     userId: userId,
                     name: nameController.text.trim(),
                     password: passwordController.text,
@@ -139,13 +154,19 @@ Future<void> showCreateGroupDialog({
               onCreated();
               if (scaffoldContext.mounted) {
                 ScaffoldMessenger.of(scaffoldContext).showSnackBar(
-                  SnackBar(content: Text('Created group: ${nameController.text.trim()}')),
+                  SnackBar(
+                    content: Text(
+                      'Created group: ${nameController.text.trim()}',
+                    ),
+                  ),
                 );
               }
             } catch (e) {
               if (dialogContext.mounted) Navigator.pop(dialogContext);
               if (scaffoldContext.mounted) {
-                await ref.read(authRepositoryProvider).showErrorDialog(
+                await ref
+                    .read(authRepositoryProvider)
+                    .showErrorDialog(
                       context: scaffoldContext,
                       message: 'Error creating group: $e',
                     );
@@ -193,11 +214,14 @@ Future<void> showJoinGroupDialog({
                 onChanged: (value) async {
                   if (value.isNotEmpty) {
                     try {
-                      final results =
-                          await ref.read(groupRepositoryProvider).searchGroups(value);
+                      final results = await ref
+                          .read(groupRepositoryProvider)
+                          .searchGroups(value);
                       setDialogState(() => searchResults = results);
                     } catch (e) {
-                      await ref.read(authRepositoryProvider).showErrorDialog(
+                      await ref
+                          .read(authRepositoryProvider)
+                          .showErrorDialog(
                             context: dialogContext,
                             message: 'Error searching for groups: $e',
                           );
@@ -212,7 +236,10 @@ Future<void> showJoinGroupDialog({
                 height: 200,
                 child: searchResults.isEmpty
                     ? Center(
-                        child: Text('Search for a group', style: AppTextStyles.body()),
+                        child: Text(
+                          'Search for a group',
+                          style: AppTextStyles.body(),
+                        ),
                       )
                     : ListView.builder(
                         itemCount: searchResults.length,
@@ -220,7 +247,10 @@ Future<void> showJoinGroupDialog({
                           final group = searchResults[index];
                           return ListTile(
                             leading: const Icon(Icons.group),
-                            title: Text(group.name, style: AppTextStyles.body()),
+                            title: Text(
+                              group.name,
+                              style: AppTextStyles.body(),
+                            ),
                             subtitle: Text(
                               '${group.memberCount} members',
                               style: AppTextStyles.label(),

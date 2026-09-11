@@ -33,9 +33,11 @@ class NoGroupPrompt extends StatelessWidget {
               ),
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 0),
-                side: const BorderSide(color: AppColors.primaryLight, width: 1),
+                side: const BorderSide(width: 1),
                 backgroundColor: AppColors.surface,
-                shape: const RoundedRectangleBorder(borderRadius: AppBorders.radius),
+                shape: const RoundedRectangleBorder(
+                  borderRadius: AppBorders.radius,
+                ),
                 padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
               ),
             ),

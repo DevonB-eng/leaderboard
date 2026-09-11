@@ -15,7 +15,9 @@ final historyProvider = FutureProvider<WeeklyHistory?>((ref) async {
   if (user == null || groupId == null) return null;
 
   final dateKeys = ref.watch(historyDateKeysProvider);
-  return ref.watch(leaderboardRepositoryProvider).fetchWeeklyHistory(
+  return ref
+      .watch(leaderboardRepositoryProvider)
+      .fetchWeeklyHistory(
         userId: user.id,
         groupId: groupId,
         dateKeys: dateKeys,

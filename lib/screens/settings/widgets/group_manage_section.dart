@@ -24,7 +24,7 @@ class AppVoteList extends ConsumerWidget {
     final userId = ref.watch(currentUserProvider)?.id;
     if (userId == null) return const SizedBox.shrink();
 
-    final votes = ref.watch(appVotesProvider);
+    ref.watch(appVotesProvider);
     final votesNotifier = ref.read(appVotesProvider.notifier);
 
     return SubSectionCard(
@@ -45,7 +45,7 @@ class AppVoteList extends ConsumerWidget {
             ],
           ),
         ),
-        const Divider(height: 1, color: AppColors.primaryLight),
+        const Divider(height: 1, color: AppColors.primary),
         ...badAppDisplayNames.map((appName) {
           final voted = votesNotifier.isVotedByCurrentUser(appName, userId);
           final voteStr = votesNotifier.voteCount(appName, memberCount);
@@ -61,7 +61,9 @@ class AppVoteList extends ConsumerWidget {
                     await votesNotifier.toggleVote(appName, userId, group.id);
                   } catch (_) {
                     if (context.mounted) {
-                      await ref.read(authRepositoryProvider).showErrorDialog(
+                      await ref
+                          .read(authRepositoryProvider)
+                          .showErrorDialog(
                             context: context,
                             message: 'Failed to update vote. Please try again.',
                           );
@@ -122,44 +124,61 @@ class GroupManageSection extends ConsumerWidget {
                     ),
                   ]
                 : members.isEmpty
-                    ? [
-                        Padding(
-                          padding: const EdgeInsets.all(AppSpacing.md),
-                          child: Text('No members found.', style: AppTextStyles.body()),
-                        ),
-                      ]
-                    : members
-                        .map(
-                          (member) => Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.md,
-                              vertical: AppSpacing.xs,
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(
-                                  Icons.person,
-                                  size: 14,
-                                  color: AppColors.textSecondary,
-                                ),
-                                const SizedBox(width: AppSpacing.sm),
-                                Text(member.username, style: AppTextStyles.body()),
-                              ],
-                            ),
+                ? [
+                    Padding(
+                      padding: const EdgeInsets.all(AppSpacing.md),
+                      child: Text(
+                        'No members found.',
+                        style: AppTextStyles.body(),
+                      ),
+                    ),
+                  ]
+                : members
+                      .map(
+                        (member) => Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.md,
+                            vertical: AppSpacing.xs,
                           ),
-                        )
-                        .toList(),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.person,
+                                size: 14,
+                                color: AppColors.textSecondary,
+                              ),
+                              const SizedBox(width: AppSpacing.sm),
+                              Text(
+                                member.username,
+                                style: AppTextStyles.body(
+                                  color: AppColors.textPrimary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                      .toList(),
           ),
           const SizedBox(height: AppSpacing.sm),
           AppVoteList(group: group, memberCount: members.length),
           const SizedBox(height: AppSpacing.sm),
           OutlinedButton.icon(
             onPressed: () => _leaveGroup(context, ref),
-            icon: const Icon(Icons.exit_to_app, size: 16, color: AppColors.error),
-            label: Text('LEAVE GROUP', style: AppTextStyles.label(color: AppColors.error)),
+            icon: const Icon(
+              Icons.exit_to_app,
+              size: 16,
+              color: AppColors.error,
+            ),
+            label: Text(
+              'LEAVE GROUP',
+              style: AppTextStyles.label(color: AppColors.error),
+            ),
             style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: AppColors.primaryLight, width: 1),
-              shape: const RoundedRectangleBorder(borderRadius: AppBorders.radius),
+              side: const BorderSide(color: AppColors.primary, width: 1),
+              shape: const RoundedRectangleBorder(
+                borderRadius: AppBorders.radius,
+              ),
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
             ),
           ),
@@ -179,7 +198,10 @@ class GroupManageSection extends ConsumerWidget {
           side: AppBorders.thin,
         ),
         title: Text('LEAVE GROUP', style: AppTextStyles.heading()),
-        content: Text('Are you sure you want to leave this group?', style: AppTextStyles.label()),
+        content: Text(
+          'Are you sure you want to leave this group?',
+          style: AppTextStyles.label(),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -199,19 +221,20 @@ class GroupManageSection extends ConsumerWidget {
     try {
       final userId = ref.read(authRepositoryProvider).currentUser?.id;
       if (userId == null) throw Exception('Unable to leave group.');
-      await ref.read(groupRepositoryProvider).leaveGroup(
-            userId: userId,
-            groupId: group.id,
-          );
+      await ref
+          .read(groupRepositoryProvider)
+          .leaveGroup(userId: userId, groupId: group.id);
       onGroupLeft();
       if (scaffoldContext.mounted) {
-        ScaffoldMessenger.of(scaffoldContext).showSnackBar(
-          const SnackBar(content: Text('Left the group')),
-        );
+        ScaffoldMessenger.of(
+          scaffoldContext,
+        ).showSnackBar(const SnackBar(content: Text('Left the group')));
       }
     } catch (e) {
       if (scaffoldContext.mounted) {
-        await ref.read(authRepositoryProvider).showErrorDialog(
+        await ref
+            .read(authRepositoryProvider)
+            .showErrorDialog(
               context: scaffoldContext,
               message: 'Error leaving group: $e',
             );

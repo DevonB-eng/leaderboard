@@ -4,13 +4,6 @@ String formatMinutes(double minutes) {
   return hrs > 0 ? '${hrs}h ${mins}m' : '${mins}m';
 }
 
-String formatDurationMinutes(int minutes) {
-  final hours = minutes ~/ 60;
-  final mins = minutes % 60;
-  if (hours > 0) return '${hours}h ${mins}m';
-  return '${mins}m';
-}
-
 String dateKey(DateTime date) {
   return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 }

@@ -1,8 +1,5 @@
 class AppBreakdown {
-  const AppBreakdown({
-    required this.appName,
-    required this.minutes,
-  });
+  const AppBreakdown({required this.appName, required this.minutes});
 
   final String appName;
   final double minutes;
@@ -13,11 +10,6 @@ class AppBreakdown {
       minutes: (json['minutes'] as num?)?.toDouble() ?? 0,
     );
   }
-
-  Map<String, dynamic> toJson() => {
-        'appName': appName,
-        'minutes': minutes,
-      };
 }
 
 class LeaderboardEntry {
@@ -36,8 +28,11 @@ class LeaderboardEntry {
   final String? lastUpdated;
 
   factory LeaderboardEntry.fromJson(Map<String, dynamic> json) {
-    final breakdown = (json['badAppsBreakdown'] as List<dynamic>?)
-            ?.map((e) => AppBreakdown.fromJson(Map<String, dynamic>.from(e as Map)))
+    final breakdown =
+        (json['badAppsBreakdown'] as List<dynamic>?)
+            ?.map(
+              (e) => AppBreakdown.fromJson(Map<String, dynamic>.from(e as Map)),
+            )
             .toList() ??
         [];
 
@@ -49,14 +44,6 @@ class LeaderboardEntry {
       lastUpdated: json['lastUpdated'] as String?,
     );
   }
-
-  Map<String, dynamic> toJson() => {
-        'uid': userId,
-        'username': username,
-        'totalBadMinutes': totalBadMinutes,
-        'badAppsBreakdown': badAppsBreakdown.map((e) => e.toJson()).toList(),
-        'lastUpdated': lastUpdated,
-      };
 }
 
 class Leaderboard {
@@ -75,7 +62,10 @@ class Leaderboard {
     return Leaderboard(
       groupId: groupId,
       entries: rawEntries
-          .map((e) => LeaderboardEntry.fromJson(Map<String, dynamic>.from(e as Map)))
+          .map(
+            (e) =>
+                LeaderboardEntry.fromJson(Map<String, dynamic>.from(e as Map)),
+          )
           .toList(),
       lastUpdated: json['last_updated'] as String?,
     );

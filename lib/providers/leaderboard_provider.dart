@@ -22,7 +22,9 @@ class LeaderboardRealtimeNotifier extends StateNotifier<int> {
     if (_subscribedGroupId == groupId) return;
     _channel?.unsubscribe();
     _subscribedGroupId = groupId;
-    _channel = _ref.read(leaderboardRepositoryProvider).subscribeToLeaderboard(
+    _channel = _ref
+        .read(leaderboardRepositoryProvider)
+        .subscribeToLeaderboard(
           groupId: groupId,
           onUpdate: () {
             state++;
@@ -46,7 +48,7 @@ class LeaderboardRealtimeNotifier extends StateNotifier<int> {
 
 final leaderboardRealtimeProvider =
     StateNotifierProvider<LeaderboardRealtimeNotifier, int>((ref) {
-  final notifier = LeaderboardRealtimeNotifier(ref);
-  ref.onDispose(notifier.dispose);
-  return notifier;
-});
+      final notifier = LeaderboardRealtimeNotifier(ref);
+      ref.onDispose(notifier.dispose);
+      return notifier;
+    });

@@ -17,7 +17,8 @@ class PermissionsService {
       final confirmed = await _showPermissionDialog(
         context: context,
         title: 'SCREEN TIME ACCESS',
-        message: 'This app needs access to your usage stats to track '
+        message:
+            'This app needs access to your usage stats to track '
             'screen time. Tap "Open Settings", find this app, '
             'and toggle on "Permit usage access".',
         confirmLabel: 'Open Settings',
@@ -32,7 +33,8 @@ class PermissionsService {
       final confirmed = await _showPermissionDialog(
         context: context,
         title: 'NOTIFICATIONS',
-        message: 'Enable notifications to get leaderboard updates '
+        message:
+            'Enable notifications to get leaderboard updates '
             'even when the app is closed.',
         confirmLabel: 'Allow',
       );
@@ -41,7 +43,8 @@ class PermissionsService {
       final confirmed = await _showPermissionDialog(
         context: context,
         title: 'NOTIFICATIONS BLOCKED',
-        message: 'Notifications are permanently blocked. Enable them '
+        message:
+            'Notifications are permanently blocked. Enable them '
             'in your device settings to receive leaderboard updates.',
         confirmLabel: 'Open Settings',
       );
@@ -50,11 +53,13 @@ class PermissionsService {
   }
 
   Future<void> requestBatteryOptimizationExemption(BuildContext context) async {
-    if (await Permission.ignoreBatteryOptimizations.isDenied && context.mounted) {
+    if (await Permission.ignoreBatteryOptimizations.isDenied &&
+        context.mounted) {
       final confirmed = await _showPermissionDialog(
         context: context,
         title: 'BACKGROUND SYNC',
-        message: 'To keep the leaderboard updated while the app is '
+        message:
+            'To keep the leaderboard updated while the app is '
             'closed, please allow this app to run in the background.',
         confirmLabel: 'Allow',
       );
@@ -78,17 +83,21 @@ class PermissionsService {
           side: AppBorders.thin,
         ),
         title: Text(title, style: AppTextStyles.heading()),
-        content: Text(message, style: AppTextStyles.body(color: AppColors.textSecondary)),
+        content: Text(
+          message,
+          style: AppTextStyles.body(color: AppColors.textSecondary),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text('Not Now', style: AppTextStyles.body()),
+            child: Text(
+              'Not Now',
+              style: AppTextStyles.body(color: AppColors.error),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-            ),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.success),
             child: Text(confirmLabel, style: AppTextStyles.body()),
           ),
         ],

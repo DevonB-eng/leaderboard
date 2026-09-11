@@ -48,10 +48,9 @@ class AppVotesNotifier extends StateNotifier<Map<String, List<String>>> {
     state = {...state, appName: updated};
 
     try {
-      await _ref.read(groupRepositoryProvider).updateAppVotes(
-            groupId: groupId,
-            appVotes: state,
-          );
+      await _ref
+          .read(groupRepositoryProvider)
+          .updateAppVotes(groupId: groupId, appVotes: state);
     } catch (_) {
       state = {...state, appName: initialList};
       rethrow;
@@ -80,5 +79,5 @@ class AppVotesNotifier extends StateNotifier<Map<String, List<String>>> {
 
 final appVotesProvider =
     StateNotifierProvider<AppVotesNotifier, Map<String, List<String>>>((ref) {
-  return AppVotesNotifier(ref);
-});
+      return AppVotesNotifier(ref);
+    });

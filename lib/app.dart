@@ -17,12 +17,12 @@ class AppUsageApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: AppTheme.dark(),
       home: authState.when(
-        loading: () => const Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        ),
+        loading: () =>
+            const Scaffold(body: Center(child: CircularProgressIndicator())),
         error: (_, __) => const SignInScreen(),
         data: (state) {
-          final session = state.session ?? ref.read(authRepositoryProvider).currentSession;
+          final session =
+              state.session ?? ref.read(authRepositoryProvider).currentSession;
           if (session != null) {
             return const HomeScreen();
           }

@@ -30,7 +30,11 @@ class AppHeader extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(title, textAlign: TextAlign.center, style: AppTextStyles.display()),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.display(color: AppColors.surface),
+                ),
                 if (trailing != null) trailing!,
               ],
             ),

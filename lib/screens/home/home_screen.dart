@@ -23,7 +23,8 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObserver {
+class _HomeScreenState extends ConsumerState<HomeScreen>
+    with WidgetsBindingObserver {
   final _permissionsService = PermissionsService();
 
   @override
@@ -105,21 +106,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
             AppHeader(
               title: 'LEADERBOARD',
               trailing: IconButton(
-                icon: const Icon(Icons.refresh, color: AppColors.textPrimary, size: 22),
+                icon: const Icon(
+                  Icons.refresh,
+                  color: AppColors.textPrimary,
+                  size: 22,
+                ),
                 tooltip: 'Refresh',
-                onPressed: () => ref.read(screentimeSyncProvider.notifier).sync(),
+                onPressed: () =>
+                    ref.read(screentimeSyncProvider.notifier).sync(),
               ),
               navButton: Row(
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: _navigateToSettings,
-                      icon: const Icon(Icons.settings, size: 16, color: AppColors.textPrimary),
-                      label: Text('SETTINGS & INFO', style: AppTextStyles.body()),
+                      icon: const Icon(
+                        Icons.settings,
+                        size: 16,
+                        color: AppColors.textPrimary,
+                      ),
+                      label: Text(
+                        'SETTINGS & INFO',
+                        style: AppTextStyles.body(),
+                      ),
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                        side: const BorderSide(color: AppColors.primaryLight, width: 1),
-                        shape: const RoundedRectangleBorder(borderRadius: AppBorders.radius),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppSpacing.sm,
+                        ),
+                        side: const BorderSide(width: 1),
+                        shape: const RoundedRectangleBorder(
+                          borderRadius: AppBorders.radius,
+                        ),
                       ),
                     ),
                   ),
@@ -130,7 +147,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
               child: groupIdAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (e, _) => Center(
-                  child: Text('Error: $e', style: AppTextStyles.body(color: AppColors.error)),
+                  child: Text(
+                    'Error: $e',
+                    style: AppTextStyles.body(color: AppColors.error),
+                  ),
                 ),
                 data: (groupId) {
                   if (groupId == null) {
@@ -138,9 +158,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                   }
 
                   return leaderboardAsync.when(
-                    loading: () => const Center(child: CircularProgressIndicator()),
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
                     error: (e, _) => Center(
-                      child: Text('Error: $e', style: AppTextStyles.body(color: AppColors.error)),
+                      child: Text(
+                        'Error: $e',
+                        style: AppTextStyles.body(color: AppColors.error),
+                      ),
                     ),
                     data: (leaderboard) {
                       final entries = leaderboard?.entries ?? [];
@@ -148,7 +172,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> with WidgetsBindingObse
                         return Center(
                           child: Text(
                             'No data yet!',
-                            style: AppTextStyles.body(color: AppColors.textSecondary),
+                            style: AppTextStyles.body(
+                              color: AppColors.textSecondary,
+                            ),
                             textAlign: TextAlign.center,
                           ),
                         );

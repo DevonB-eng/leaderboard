@@ -19,11 +19,4 @@ class UserProfile {
       groupId: json['group_id'] as String?,
     );
   }
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'username': username,
-        if (email != null) 'email': email,
-        if (groupId != null) 'group_id': groupId,
-      };
 }

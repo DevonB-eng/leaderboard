@@ -4,15 +4,23 @@ import 'package:google_fonts/google_fonts.dart';
 class AppColors {
   AppColors._();
 
-  static const Color background = Color(0xFF0C0A1A);
-  static const Color surface = Color(0xFF1A1530);
-  static const Color surfaceRaised = Color(0xFF251E42);
-  static const Color primary = Color(0xFF3D1875);
-  static const Color primaryLight = Color(0xFF6B35C2);
-  static const Color primaryBright = Color(0xFFA855F7);
-  static const Color textPrimary = Color(0xFFFFFFFF);
-  static const Color textSecondary = Color(0xFF9B7EC8);
-  static const Color textMuted = Color(0xFF5C4A7A);
+  static const Color background = Color(0xFFFDFCF7);
+  static const Color surface = Color(
+    0xFFFDFCF7,
+  ); // flat — cards distinguished by border only
+  static Color surfaceRaised = Colors.black.withValues(
+    alpha: 0.04,
+  ); // black @ low opacity over cream, for expanded panels
+  static const Color primary = Color(0xFF121212);
+  static const Color primaryLight = Color(0xFF89c2d9);
+  static const Color primaryBright = Color(0xFF89c2d9);
+  //static const Color primaryBright = Color(0xFFFF9E79);
+  static const Color textPrimary = Color(0xFF121212);
+  static const Color textSecondary = Color(0xFF121212);
+  //static Color textMuted = Color(0xFF121212).withValues(alpha: 0.5); // RANK/USER/TODAY labels, timestamps
+  static const Color textMuted = Color(
+    0xFF121212,
+  ); // RANK/USER/TODAY labels, timestamps
   static const Color error = Color(0xFFCF6679);
   static const Color success = Color(0xFF4CAF82);
 }
@@ -20,15 +28,17 @@ class AppColors {
 class AppTextStyles {
   AppTextStyles._();
 
-  static TextStyle display({double size = 36, Color color = AppColors.textPrimary}) {
-    return GoogleFonts.vt323(
-      fontSize: size,
-      color: color,
-      letterSpacing: 2.0,
-    );
+  static TextStyle display({
+    double size = 36,
+    Color color = AppColors.textPrimary,
+  }) {
+    return GoogleFonts.vt323(fontSize: size, color: color, letterSpacing: 2.0);
   }
 
-  static TextStyle heading({double size = 18, Color color = AppColors.textPrimary}) {
+  static TextStyle heading({
+    double size = 18,
+    Color color = AppColors.primaryLight,
+  }) {
     return GoogleFonts.shareTechMono(
       fontSize: size,
       color: color,
@@ -37,7 +47,10 @@ class AppTextStyles {
     );
   }
 
-  static TextStyle body({double size = 14, Color color = AppColors.textPrimary}) {
+  static TextStyle body({
+    double size = 14,
+    Color color = AppColors.textPrimary,
+  }) {
     return GoogleFonts.shareTechMono(
       fontSize: size,
       color: color,
@@ -45,7 +58,10 @@ class AppTextStyles {
     );
   }
 
-  static TextStyle label({double size = 12, Color color = AppColors.textSecondary}) {
+  static TextStyle label({
+    double size = 12,
+    Color color = AppColors.textSecondary,
+  }) {
     return GoogleFonts.shareTechMono(
       fontSize: size,
       color: color,
@@ -53,11 +69,11 @@ class AppTextStyles {
     );
   }
 
-  static TextStyle mono({double size = 13, Color color = AppColors.textSecondary}) {
-    return GoogleFonts.shareTechMono(
-      fontSize: size,
-      color: color,
-    );
+  static TextStyle mono({
+    double size = 13,
+    Color color = AppColors.textSecondary,
+  }) {
+    return GoogleFonts.shareTechMono(fontSize: size, color: color);
   }
 }
 
@@ -65,19 +81,11 @@ class AppBorders {
   AppBorders._();
 
   static const BorderSide thin = BorderSide(
-    color: AppColors.primaryLight,
+    color: AppColors.primary,
     width: 1.0,
   );
 
-  static Border box = Border.all(
-    color: AppColors.primaryLight,
-    width: 1.0,
-  );
-
-  static Border boxThick = Border.all(
-    color: AppColors.primaryBright,
-    width: 2.0,
-  );
+  static Border box = Border.all(color: AppColors.primary, width: 1.0);
 
   static const BorderRadius radius = BorderRadius.all(Radius.circular(4));
 }
@@ -99,7 +107,7 @@ class AppTheme {
   static ThemeData dark() {
     return ThemeData(
       brightness: Brightness.dark,
-      scaffoldBackgroundColor: AppColors.background,
+      scaffoldBackgroundColor: AppColors.primary,
       primaryColor: AppColors.primary,
       colorScheme: const ColorScheme.dark(
         primary: AppColors.primary,
@@ -156,12 +164,10 @@ class AppTheme {
         ),
       ),
       dividerTheme: const DividerThemeData(
-        color: AppColors.primaryLight,
+        color: AppColors.primary,
         thickness: 1.0,
       ),
-      iconTheme: const IconThemeData(
-        color: AppColors.primaryLight,
-      ),
+      iconTheme: const IconThemeData(color: AppColors.primary),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.surfaceRaised,
@@ -177,12 +183,16 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: AppBorders.radius,
-          borderSide: const BorderSide(color: AppColors.primaryBright, width: 1.5),
+          borderSide: const BorderSide(
+            color: AppColors.primaryBright,
+            width: 1.5,
+          ),
         ),
       ),
       checkboxTheme: CheckboxThemeData(
         fillColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return AppColors.primaryBright;
+          if (states.contains(WidgetState.selected))
+            return AppColors.primaryLight;
           return AppColors.surfaceRaised;
         }),
         checkColor: WidgetStateProperty.all(AppColors.textPrimary),

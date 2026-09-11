@@ -4,7 +4,8 @@ import 'package:leaderboard/data/supabase/supabase_client.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class LeaderboardRepository {
-  LeaderboardRepository({SupabaseClient? client}) : _client = client ?? supabaseClient;
+  LeaderboardRepository({SupabaseClient? client})
+    : _client = client ?? supabaseClient;
 
   final SupabaseClient _client;
 

@@ -23,10 +23,13 @@ class GroupJoinSection extends ConsumerWidget {
               onJoined: onGroupChanged,
             ),
             icon: const Icon(Icons.group_add, size: 16),
-            label: Text('JOIN GROUP', style: AppTextStyles.body()),
+            label: Text(
+              'JOIN GROUP',
+              style: AppTextStyles.body(color: AppColors.primaryLight),
+            ),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-              side: const BorderSide(color: AppColors.primaryLight, width: 1),
+              side: const BorderSide(color: AppColors.primary),
               backgroundColor: AppColors.surface,
               shape: const RoundedRectangleBorder(
                 borderRadius: AppBorders.radius,
@@ -45,9 +48,11 @@ class GroupJoinSection extends ConsumerWidget {
             label: Text('CREATE GROUP', style: AppTextStyles.body()),
             style: OutlinedButton.styleFrom(
               minimumSize: const Size(double.infinity, 0),
-              side: const BorderSide(color: AppColors.primaryLight, width: 1),
+              side: const BorderSide(color: AppColors.primary, width: 1),
               backgroundColor: AppColors.surface,
-              shape: const RoundedRectangleBorder(borderRadius: AppBorders.radius),
+              shape: const RoundedRectangleBorder(
+                borderRadius: AppBorders.radius,
+              ),
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
             ),
           ),

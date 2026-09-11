@@ -12,7 +12,9 @@ class Group {
   final Map<String, List<String>> appVotes;
 
   factory Group.fromJson(Map<String, dynamic> json) {
-    final rawVotes = Map<String, dynamic>.from((json['app_votes'] as Map?) ?? {});
+    final rawVotes = Map<String, dynamic>.from(
+      (json['app_votes'] as Map?) ?? {},
+    );
     final parsedVotes = rawVotes.map(
       (app, voters) => MapEntry(app, List<String>.from(voters as List)),
     );

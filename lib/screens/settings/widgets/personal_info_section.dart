@@ -20,30 +20,42 @@ class PersonalInfoSection extends ConsumerWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.person_outline, size: 16, color: AppColors.primaryLight),
+              const Icon(
+                Icons.person_outline,
+                size: 16,
+                color: AppColors.primaryLight,
+              ),
               const SizedBox(width: AppSpacing.sm),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('USERNAME', style: AppTextStyles.label()),
                   Text(
-                    (user?.userMetadata?['username'] as String?) ?? 'No username set',
+                    (user?.userMetadata?['username'] as String?) ??
+                        'No username set',
                     style: AppTextStyles.body(),
                   ),
                 ],
               ),
             ],
           ),
-          const Divider(height: AppSpacing.lg, color: AppColors.primaryLight),
+          const Divider(height: AppSpacing.lg, color: AppColors.primary),
           Row(
             children: [
-              const Icon(Icons.email_outlined, size: 16, color: AppColors.primaryLight),
+              const Icon(
+                Icons.email_outlined,
+                size: 16,
+                color: AppColors.primaryLight,
+              ),
               const SizedBox(width: AppSpacing.sm),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('EMAIL', style: AppTextStyles.label()),
-                  Text(user?.email ?? 'No email found', style: AppTextStyles.body()),
+                  Text(
+                    user?.email ?? 'No email found',
+                    style: AppTextStyles.body(),
+                  ),
                 ],
               ),
             ],
@@ -52,11 +64,16 @@ class PersonalInfoSection extends ConsumerWidget {
           OutlinedButton.icon(
             onPressed: () => _signOut(context, ref, auth),
             icon: const Icon(Icons.logout, size: 16, color: AppColors.error),
-            label: Text('SIGN OUT', style: AppTextStyles.label(color: AppColors.error)),
+            label: Text(
+              'SIGN OUT',
+              style: AppTextStyles.label(color: AppColors.error),
+            ),
             style: OutlinedButton.styleFrom(
               minimumSize: const Size(double.infinity, 0),
-              side: const BorderSide(color: AppColors.primaryLight, width: 1),
-              shape: const RoundedRectangleBorder(borderRadius: AppBorders.radius),
+              side: const BorderSide(color: AppColors.primary, width: 1),
+              shape: const RoundedRectangleBorder(
+                borderRadius: AppBorders.radius,
+              ),
               padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
             ),
           ),
@@ -65,7 +82,11 @@ class PersonalInfoSection extends ConsumerWidget {
     );
   }
 
-  Future<void> _signOut(BuildContext context, WidgetRef ref, AuthRepository auth) async {
+  Future<void> _signOut(
+    BuildContext context,
+    WidgetRef ref,
+    AuthRepository auth,
+  ) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -75,7 +96,10 @@ class PersonalInfoSection extends ConsumerWidget {
           side: AppBorders.thin,
         ),
         title: Text('SIGN OUT', style: AppTextStyles.heading()),
-        content: Text('Are you sure you want to sign out?', style: AppTextStyles.label()),
+        content: Text(
+          'Are you sure you want to sign out?',
+          style: AppTextStyles.label(),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),

@@ -75,7 +75,7 @@ class _EmailSignInButtonState extends ConsumerState<EmailSignInButton> {
                   isSignUp
                       ? 'Already have an account? Sign In'
                       : 'Don\'t have an account? Sign Up',
-                  style: AppTextStyles.label(),
+                  style: AppTextStyles.label(color: AppColors.primaryLight),
                 ),
               ),
             ],
@@ -86,10 +86,14 @@ class _EmailSignInButtonState extends ConsumerState<EmailSignInButton> {
               child: Text('Cancel', style: AppTextStyles.body()),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: AppColors.success),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.success,
+              ),
               onPressed: () async {
                 if (isSignUp && nameController.text.trim().isEmpty) {
-                  await ref.read(authRepositoryProvider).showErrorDialog(
+                  await ref
+                      .read(authRepositoryProvider)
+                      .showErrorDialog(
                         context: dialogContext,
                         message: 'Please enter a username.',
                       );
@@ -119,7 +123,10 @@ class _EmailSignInButtonState extends ConsumerState<EmailSignInButton> {
                   if (mounted) setState(() => _isSigningIn = false);
                 }
               },
-              child: Text(isSignUp ? 'Sign Up' : 'Sign In', style: AppTextStyles.body()),
+              child: Text(
+                isSignUp ? 'Sign Up' : 'Sign In',
+                style: AppTextStyles.body(),
+              ),
             ),
           ],
         ),
@@ -133,14 +140,18 @@ class _EmailSignInButtonState extends ConsumerState<EmailSignInButton> {
       padding: const EdgeInsets.all(AppSpacing.sm),
       child: _isSigningIn
           ? const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(AppColors.primaryBright),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                AppColors.primaryBright,
+              ),
             )
           : ElevatedButton(
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 0),
                 side: const BorderSide(color: AppColors.primaryLight, width: 1),
                 backgroundColor: AppColors.surface,
-                shape: const RoundedRectangleBorder(borderRadius: AppBorders.radius),
+                shape: const RoundedRectangleBorder(
+                  borderRadius: AppBorders.radius,
+                ),
                 padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
               ),
               onPressed: _showEmailPasswordDialog,
@@ -153,7 +164,10 @@ class _EmailSignInButtonState extends ConsumerState<EmailSignInButton> {
                     const Icon(Icons.email, size: 35),
                     Padding(
                       padding: const EdgeInsets.only(left: 10),
-                      child: Text('Sign in with Email', style: AppTextStyles.body()),
+                      child: Text(
+                        'Sign in with Email',
+                        style: AppTextStyles.body(),
+                      ),
                     ),
                   ],
                 ),
