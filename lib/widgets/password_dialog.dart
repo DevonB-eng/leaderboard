@@ -22,9 +22,11 @@ Future<void> showJoinPasswordDialog({
       content: TextField(
         controller: passwordController,
         style: AppTextStyles.body(),
+        maxLength: 128,
         decoration: const InputDecoration(
           labelText: 'Enter group password',
           prefixIcon: Icon(Icons.lock, size: 18),
+          counterText: '',
         ),
         obscureText: true,
       ),
@@ -41,7 +43,6 @@ Future<void> showJoinPasswordDialog({
               await ref
                   .read(groupRepositoryProvider)
                   .joinGroup(
-                    userId: userId,
                     groupId: groupId,
                     password: passwordController.text,
                   );
@@ -90,18 +91,22 @@ Future<void> showCreateGroupDialog({
           TextField(
             controller: nameController,
             style: AppTextStyles.body(),
+            maxLength: 60,
             decoration: const InputDecoration(
               labelText: 'Group Name',
               prefixIcon: Icon(Icons.group, size: 18),
+              counterText: '',
             ),
           ),
           const SizedBox(height: AppSpacing.md),
           TextField(
             controller: passwordController,
             style: AppTextStyles.body(),
+            maxLength: 128,
             decoration: const InputDecoration(
               labelText: 'Group Password',
               prefixIcon: Icon(Icons.lock, size: 18),
+              counterText: '',
             ),
             obscureText: true,
           ),
@@ -131,7 +136,6 @@ Future<void> showCreateGroupDialog({
               await ref
                   .read(groupRepositoryProvider)
                   .createGroup(
-                    userId: userId,
                     name: nameController.text.trim(),
                     password: passwordController.text,
                   );

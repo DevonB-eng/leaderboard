@@ -1,4 +1,3 @@
-import 'package:leaderboard/core/utils/password_hash.dart';
 import 'package:leaderboard/data/models/group.dart';
 import 'package:leaderboard/data/models/user_profile.dart';
 import 'package:leaderboard/data/supabase/supabase_client.dart';
@@ -25,10 +24,15 @@ class GroupRepository {
     return user?.groupId;
   }
 
+  /// password_hash is deliberately excluded — clients no longer have SELECT
+  /// privilege on that column (see supabase/schema.sql), so `select()`
+  /// (equivalent to `select *`) would fail with a permission error.
+  static const _groupColumns = 'id, name, member_ids, app_votes, created_by, created_at';
+
   Future<Group?> fetchGroup(String groupId) async {
     final row = await _client
         .from('groups')
-        .select()
+        .select(_groupColumns)
         .eq('id', groupId)
         .maybeSingle();
     if (row == null) return null;
@@ -37,109 +41,62 @@ class GroupRepository {
 
   Future<List<GroupSummary>> searchGroups(String query) async {
     if (query.isEmpty) return [];
+    // Escape ILIKE wildcard characters so a literal "%" or "_" in the
+    // search box can't turn a prefix search into a match-everything query.
+    final escaped = query
+        .replaceAll(r'\', r'\\')
+        .replaceAll('%', r'\%')
+        .replaceAll('_', r'\_');
     final results = await _client
         .from('groups')
         .select('id, name, member_ids')
-        .ilike('name', '$query%');
+        .ilike('name', '$escaped%');
     return List<Map<String, dynamic>>.from(
       results,
     ).map(GroupSummary.fromJson).toList();
   }
 
+  /// Group creation, joining, and leaving all run as SECURITY DEFINER
+  /// Postgres functions (see supabase/schema.sql) rather than direct table
+  /// writes — that's what lets the password check and hash happen server
+  /// side without ever exposing password_hash to clients, and what stops
+  /// any signed-in user from writing straight into another group's
+  /// member_ids or password_hash.
   Future<void> createGroup({
-    required String userId,
     required String name,
     required String password,
   }) async {
-    final normalizedName = name.trim();
-    final existing = await _client
-        .from('groups')
-        .select('id')
-        .eq('name_lower', normalizedName.toLowerCase())
-        .limit(1);
-    if (existing.isNotEmpty) {
-      throw Exception('A group with that name already exists.');
+    try {
+      await _client.rpc(
+        'create_group',
+        params: {'p_name': name.trim(), 'p_password': password},
+      );
+    } on PostgrestException catch (e) {
+      throw Exception(e.message);
     }
-
-    final row = await _client
-        .from('groups')
-        .insert({
-          'name': normalizedName,
-          'name_lower': normalizedName.toLowerCase(),
-          'password_hash': hashPassword(password),
-          'member_ids': [userId],
-          'created_by': userId,
-        })
-        .select()
-        .single();
-
-    await _client
-        .from('users')
-        .update({'group_id': row['id']})
-        .eq('id', userId);
   }
 
   Future<Group> joinGroup({
-    required String userId,
     required String groupId,
     required String password,
   }) async {
-    final group = await fetchGroup(groupId);
-    if (group == null) {
-      throw Exception('Group not found.');
+    try {
+      final row = await _client.rpc(
+        'join_group',
+        params: {'p_group_id': groupId, 'p_password': password},
+      );
+      return Group.fromJson(Map<String, dynamic>.from(row as Map));
+    } on PostgrestException catch (e) {
+      throw Exception(e.message);
     }
-
-    final row = await _client
-        .from('groups')
-        .select()
-        .eq('id', groupId)
-        .maybeSingle();
-    final passwordHash = row?['password_hash'] as String?;
-    if (passwordHash == null || passwordHash != hashPassword(password)) {
-      throw Exception('Incorrect password.');
-    }
-
-    final memberIds = List<String>.from(group.memberIds);
-    if (!memberIds.contains(userId)) {
-      memberIds.add(userId);
-      await _client
-          .from('groups')
-          .update({'member_ids': memberIds})
-          .eq('id', groupId);
-    }
-    await _client.from('users').update({'group_id': groupId}).eq('id', userId);
-
-    return Group(
-      id: group.id,
-      name: group.name,
-      memberIds: memberIds,
-      appVotes: group.appVotes,
-    );
   }
 
-  Future<void> leaveGroup({
-    required String userId,
-    required String groupId,
-  }) async {
-    final group = await fetchGroup(groupId);
-    if (group == null) return;
-
-    final updatedMemberIds = group.memberIds
-        .where((id) => id != userId)
-        .toList();
-
-    if (updatedMemberIds.isEmpty) {
-      await _client.from('groups').delete().eq('id', groupId);
-      await _client.from('group_leaderboard').delete().eq('group_id', groupId);
-      await _client.from('group_history').delete().eq('group_id', groupId);
-    } else {
-      await _client
-          .from('groups')
-          .update({'member_ids': updatedMemberIds})
-          .eq('id', groupId);
+  Future<void> leaveGroup({required String groupId}) async {
+    try {
+      await _client.rpc('leave_group', params: {'p_group_id': groupId});
+    } on PostgrestException catch (e) {
+      throw Exception(e.message);
     }
-
-    await _client.from('users').update({'group_id': null}).eq('id', userId);
   }
 
   Future<void> updateAppVotes({

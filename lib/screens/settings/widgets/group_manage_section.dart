@@ -249,9 +249,7 @@ class GroupManageSection extends ConsumerWidget {
     try {
       final userId = ref.read(authRepositoryProvider).currentUser?.id;
       if (userId == null) throw Exception('Unable to leave group.');
-      await ref
-          .read(groupRepositoryProvider)
-          .leaveGroup(userId: userId, groupId: group.id);
+      await ref.read(groupRepositoryProvider).leaveGroup(groupId: group.id);
       onGroupLeft();
       if (scaffoldContext.mounted) {
         ScaffoldMessenger.of(

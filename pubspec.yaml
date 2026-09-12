@@ -7,7 +7,6 @@ environment:
   sdk: ^3.10.4
 
 dependencies:
-  app_usage: ^4.0.1
   crypto: ^3.0.6
   fl_chart: ^1.1.1
   flutter:
@@ -33,9 +32,9 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "lib/assets/Gemini_Generated_Image_jhggv1jhggv1jhgg.png"
+  image_path: "lib/assets/leaderboard-icon-1024.png"
   min_sdk_android: 21
   adaptive_icon_background: "#0C0A1A"
-  adaptive_icon_foreground: "lib/assets/Gemini_Generated_Image_jhggv1jhggv1jhgg.png"
+  adaptive_icon_foreground: "lib/assets/leaderboard-icon-1024.png"
   web:
     generate: false

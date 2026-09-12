@@ -22,16 +22,34 @@ create table if not exists public.groups (
   created_at timestamptz not null default now()
 );
 
-alter table public.users
-  add constraint users_group_id_fkey
-  foreign key (group_id) references public.groups(id) on delete set null;
+-- Guarded so this whole file can be re-run safely against a database that
+-- already has this constraint (plain ALTER TABLE ADD CONSTRAINT has no
+-- IF NOT EXISTS form and would abort the rest of the script otherwise).
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'users_group_id_fkey'
+  ) then
+    alter table public.users
+      add constraint users_group_id_fkey
+      foreign key (group_id) references public.groups(id) on delete set null;
+  end if;
+end;
+$$;
 
+-- One row per user, overwritten on every sync. date_key is the reporting
+-- device's local date for those minutes; readers compare it against their own
+-- current date so a member who stopped syncing drops to zero instead of having
+-- a stale total replayed as today's figure forever.
 create table if not exists public.screentime (
   user_id uuid primary key references auth.users(id) on delete cascade,
+  date_key text null,
   total_bad_minutes double precision not null default 0,
   bad_apps_breakdown jsonb not null default '[]'::jsonb,
   last_updated timestamptz null
 );
+
+alter table public.screentime add column if not exists date_key text;
 
 create table if not exists public.screentime_history (
   user_id uuid not null references auth.users(id) on delete cascade,
@@ -63,7 +81,19 @@ create index if not exists idx_screentime_history_user_date
 create index if not exists idx_group_history_group_date
   on public.group_history(group_id, date_key);
 
-alter publication supabase_realtime add table public.group_leaderboard;
+-- Guarded the same way: re-adding a table already in the publication errors.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime'
+      and schemaname = 'public'
+      and tablename = 'group_leaderboard'
+  ) then
+    alter publication supabase_realtime add table public.group_leaderboard;
+  end if;
+end;
+$$;
 
 -- RLS
 alter table public.users enable row level security;
@@ -100,37 +130,55 @@ create policy "users_update_own"
   using (auth.uid() = id)
   with check (auth.uid() = id);
 
+-- Column grants: clients may only ever change their own username directly.
+-- group_id is only ever moved by the create_group/join_group/leave_group
+-- functions below, which run as SECURITY DEFINER and bypass this grant —
+-- otherwise any signed-in user could join (or fabricate membership in) any
+-- group by writing directly to users.group_id, with no password check.
+revoke update on public.users from authenticated;
+grant update (username) on public.users to authenticated;
+
 -- Groups policies
+-- SELECT stays open (group search needs to find groups by name), but the
+-- password_hash column is hidden from every client via column grants below —
+-- RLS alone can't hide a single column, and a permissive password_hash read
+-- would let anyone crack every group's password offline.
 drop policy if exists "groups_select_authenticated" on public.groups;
 create policy "groups_select_authenticated"
   on public.groups for select
   to authenticated
   using (true);
 
-drop policy if exists "groups_insert_authenticated" on public.groups;
-create policy "groups_insert_authenticated"
-  on public.groups for insert
-  to authenticated
-  with check (auth.uid() = created_by);
+revoke select on public.groups from authenticated;
+grant select (id, name, name_lower, member_ids, app_votes, created_by, created_at)
+  on public.groups to authenticated;
 
--- Joining must allow updating member_ids before the user appears in the array;
--- the old policy blocked joiners and updates appeared to work only in local UI.
-drop policy if exists "groups_update_members" on public.groups;
-create policy "groups_update_authenticated"
-  on public.groups for update
-  to authenticated
-  using (true)
-  with check (true);
+-- No direct INSERT/DELETE policy for authenticated: creating a group (with a
+-- freshly hashed password) and deleting an emptied group both happen only
+-- inside the SECURITY DEFINER functions below.
+drop policy if exists "groups_insert_authenticated" on public.groups;
+revoke insert on public.groups from authenticated;
 
 drop policy if exists "groups_delete_creator" on public.groups;
 drop policy if exists "groups_delete_member_or_creator" on public.groups;
-create policy "groups_delete_member_or_creator"
-  on public.groups for delete
+revoke delete on public.groups from authenticated;
+
+-- The only direct UPDATE clients get is toggling their own app vote, and
+-- only while they're already a member of that group. Renaming a group,
+-- changing its password, or adding/removing members must go through the
+-- functions below — the old "using (true)" policy let ANY authenticated
+-- user (member or not) overwrite ANY group's member_ids or password_hash,
+-- which is a full takeover of every group in the app.
+drop policy if exists "groups_update_members" on public.groups;
+drop policy if exists "groups_update_authenticated" on public.groups;
+create policy "groups_update_member_votes"
+  on public.groups for update
   to authenticated
-  using (
-    auth.uid() = created_by
-    or auth.uid()::text = any(member_ids)
-  );
+  using (auth.uid()::text = any(member_ids))
+  with check (auth.uid()::text = any(member_ids));
+
+revoke update on public.groups from authenticated;
+grant update (app_votes) on public.groups to authenticated;
 
 -- Screentime policies
 -- SELECT: own row + fellow group members (needed for client-side leaderboard rebuild).
@@ -167,38 +215,222 @@ create policy "screentime_update_own"
 drop policy if exists "screentime_history_select_own" on public.screentime_history;
 create policy "screentime_history_select_own"
   on public.screentime_history for select
+  to authenticated
   using (auth.uid() = user_id);
 
 drop policy if exists "screentime_history_write_own" on public.screentime_history;
 create policy "screentime_history_write_own"
   on public.screentime_history for all
+  to authenticated
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
--- Group history policies
+-- Group history / leaderboard policies
+-- Previously "using (true)"/"with check (true)" for ALL of select/insert/
+-- update/delete — meaning any signed-in user (not just group members) could
+-- read another group's screentime leaderboard, or overwrite it with made-up
+-- data. Now scoped to members of the group the row belongs to.
 drop policy if exists "group_history_select_authenticated" on public.group_history;
-create policy "group_history_select_authenticated"
+drop policy if exists "group_history_write_authenticated" on public.group_history;
+create policy "group_history_select_member"
   on public.group_history for select
   to authenticated
-  using (true);
+  using (
+    exists (
+      select 1 from public.groups g
+      where g.id = group_history.group_id
+        and auth.uid()::text = any(g.member_ids)
+    )
+  );
 
-drop policy if exists "group_history_write_authenticated" on public.group_history;
-create policy "group_history_write_authenticated"
-  on public.group_history for all
+create policy "group_history_write_member"
+  on public.group_history for insert
   to authenticated
-  using (true)
-  with check (true);
+  with check (
+    exists (
+      select 1 from public.groups g
+      where g.id = group_history.group_id
+        and auth.uid()::text = any(g.member_ids)
+    )
+  );
 
--- Leaderboard policies
+create policy "group_history_update_member"
+  on public.group_history for update
+  to authenticated
+  using (
+    exists (
+      select 1 from public.groups g
+      where g.id = group_history.group_id
+        and auth.uid()::text = any(g.member_ids)
+    )
+  )
+  with check (
+    exists (
+      select 1 from public.groups g
+      where g.id = group_history.group_id
+        and auth.uid()::text = any(g.member_ids)
+    )
+  );
+
 drop policy if exists "group_leaderboard_select_authenticated" on public.group_leaderboard;
-create policy "group_leaderboard_select_authenticated"
+drop policy if exists "group_leaderboard_write_authenticated" on public.group_leaderboard;
+create policy "group_leaderboard_select_member"
   on public.group_leaderboard for select
   to authenticated
-  using (true);
+  using (
+    exists (
+      select 1 from public.groups g
+      where g.id = group_leaderboard.group_id
+        and auth.uid()::text = any(g.member_ids)
+    )
+  );
 
-drop policy if exists "group_leaderboard_write_authenticated" on public.group_leaderboard;
-create policy "group_leaderboard_write_authenticated"
-  on public.group_leaderboard for all
+create policy "group_leaderboard_write_member"
+  on public.group_leaderboard for insert
   to authenticated
-  using (true)
-  with check (true);
+  with check (
+    exists (
+      select 1 from public.groups g
+      where g.id = group_leaderboard.group_id
+        and auth.uid()::text = any(g.member_ids)
+    )
+  );
+
+create policy "group_leaderboard_update_member"
+  on public.group_leaderboard for update
+  to authenticated
+  using (
+    exists (
+      select 1 from public.groups g
+      where g.id = group_leaderboard.group_id
+        and auth.uid()::text = any(g.member_ids)
+    )
+  )
+  with check (
+    exists (
+      select 1 from public.groups g
+      where g.id = group_leaderboard.group_id
+        and auth.uid()::text = any(g.member_ids)
+    )
+  );
+
+-- Group membership functions
+-- These run as SECURITY DEFINER so they can check/set password_hash and
+-- member_ids without those being directly writable by clients (see the
+-- revoked grants above). Passwords are hashed with bcrypt (pgcrypto's
+-- crypt()/gen_salt('bf')) instead of the app's previous unsalted SHA-256,
+-- which was crackable in bulk the moment password_hash was ever readable.
+create or replace function public.create_group(p_name text, p_password text)
+returns public.groups
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_name text := trim(p_name);
+  v_name_lower text := lower(trim(p_name));
+  v_group public.groups;
+begin
+  if v_uid is null then
+    raise exception 'Not authenticated.';
+  end if;
+  if v_name = '' then
+    raise exception 'Group name is required.';
+  end if;
+  if p_password is null or length(p_password) < 4 then
+    raise exception 'Password must be at least 4 characters.';
+  end if;
+  if exists (select 1 from public.groups where name_lower = v_name_lower) then
+    raise exception 'A group with that name already exists.';
+  end if;
+
+  insert into public.groups (name, name_lower, password_hash, member_ids, created_by)
+  values (v_name, v_name_lower, crypt(p_password, gen_salt('bf')), array[v_uid::text], v_uid)
+  returning * into v_group;
+
+  update public.users set group_id = v_group.id where id = v_uid;
+
+  return v_group;
+end;
+$$;
+
+revoke all on function public.create_group(text, text) from public;
+grant execute on function public.create_group(text, text) to authenticated;
+
+create or replace function public.join_group(p_group_id uuid, p_password text)
+returns public.groups
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_group public.groups;
+begin
+  if v_uid is null then
+    raise exception 'Not authenticated.';
+  end if;
+
+  select * into v_group from public.groups where id = p_group_id for update;
+  if not found then
+    raise exception 'Group not found.';
+  end if;
+
+  if v_group.password_hash is null
+     or crypt(p_password, v_group.password_hash) <> v_group.password_hash then
+    raise exception 'Incorrect password.';
+  end if;
+
+  if not (v_uid::text = any(v_group.member_ids)) then
+    update public.groups
+      set member_ids = array_append(member_ids, v_uid::text)
+      where id = p_group_id
+      returning * into v_group;
+  end if;
+
+  update public.users set group_id = p_group_id where id = v_uid;
+
+  return v_group;
+end;
+$$;
+
+revoke all on function public.join_group(uuid, text) from public;
+grant execute on function public.join_group(uuid, text) to authenticated;
+
+create or replace function public.leave_group(p_group_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_member_ids text[];
+begin
+  if v_uid is null then
+    raise exception 'Not authenticated.';
+  end if;
+
+  select member_ids into v_member_ids from public.groups where id = p_group_id for update;
+  if not found then
+    update public.users set group_id = null where id = v_uid and group_id = p_group_id;
+    return;
+  end if;
+
+  v_member_ids := array_remove(v_member_ids, v_uid::text);
+
+  if array_length(v_member_ids, 1) is null then
+    delete from public.group_leaderboard where group_id = p_group_id;
+    delete from public.group_history where group_id = p_group_id;
+    delete from public.groups where id = p_group_id;
+  else
+    update public.groups set member_ids = v_member_ids where id = p_group_id;
+  end if;
+
+  update public.users set group_id = null where id = v_uid and group_id = p_group_id;
+end;
+$$;
+
+revoke all on function public.leave_group(uuid) from public;
+grant execute on function public.leave_group(uuid) to authenticated;

@@ -36,7 +36,11 @@ class _EmailSignInButtonState extends ConsumerState<EmailSignInButton> {
                 TextField(
                   controller: nameController,
                   style: AppTextStyles.body(),
-                  decoration: const InputDecoration(labelText: 'Username'),
+                  maxLength: 40,
+                  decoration: const InputDecoration(
+                    labelText: 'Username',
+                    counterText: '',
+                  ),
                   keyboardType: TextInputType.name,
                 ),
                 const SizedBox(height: 16),

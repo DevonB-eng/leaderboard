@@ -1,4 +1,3 @@
-import 'package:app_usage/app_usage.dart';
 import 'package:flutter/services.dart';
 
 import 'package:leaderboard/core/constants/bad_apps.dart';
@@ -8,12 +7,9 @@ import 'package:leaderboard/data/repositories/leaderboard_repository.dart';
 import 'package:leaderboard/data/supabase/supabase_client.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// The app_usage plugin's getAppUsage() launches the OS usage-access
-/// settings screen as an unconditional side effect whenever permission is
-/// missing — even when it's just being used to check status. This channel
-/// (backed by MainActivity.kt) checks/opens usage access without that side
-/// effect, so callers can test for permission before ever touching the
-/// plugin.
+/// Backed by MainActivity.kt. Reads usage-stats permission and per-package
+/// foreground time without the side effects and bucket-aggregation errors of
+/// the app_usage plugin — see the doc comment in MainActivity.kt.
 const _usageAccessChannel = MethodChannel('leaderboard/usage_access');
 
 class ScreentimeRepository {
@@ -51,25 +47,40 @@ class ScreentimeRepository {
     }
   }
 
-  Future<Map<String, int>> fetchBadAppUsage() async {
-    // Never call the plugin while permission is missing — see the class
-    // doc comment on _usageAccessChannel for why.
-    if (!await checkUsageStatsGranted()) return {};
+  /// Minutes of foreground time per tracked package between [from] and [to].
+  ///
+  /// Returns null when usage data can't be read at all — permission missing, or
+  /// the platform channel absent (it is registered by MainActivity, so it does
+  /// not exist in background isolates, and never on iOS). Null means "unknown"
+  /// and must never be collapsed into zero: writing zeros would wipe the day's
+  /// real total out of both `screentime` and `screentime_history`.
+  Future<Map<String, double>?> fetchBadAppUsage(DateTime from, DateTime to) async {
+    if (!await checkUsageStatsGranted()) return null;
 
-    final now = DateTime.now();
-    final oneDayAgo = now.subtract(const Duration(days: 1));
-    final usage = await AppUsage().getAppUsage(oneDayAgo, now);
-    final map = <String, int>{};
-    for (final info in usage) {
-      if (badApps.containsKey(info.packageName)) {
-        map[info.packageName] = info.usage.inMinutes;
+    final Map<String, int>? usage;
+    try {
+      usage = await _usageAccessChannel.invokeMapMethod<String, int>('getUsage', {
+        'start': from.millisecondsSinceEpoch,
+        'end': to.millisecondsSinceEpoch,
+      });
+    } catch (_) {
+      return null;
+    }
+    if (usage == null) return null;
+
+    final map = <String, double>{};
+    for (final entry in usage.entries) {
+      if (badApps.containsKey(entry.key)) {
+        map[entry.key] = entry.value / Duration.millisecondsPerMinute;
       }
     }
     return map;
   }
 
-  List<MapEntry<String, int>> groupForDisplay(Map<String, int> packageMap) {
-    final map = <String, int>{};
+  List<MapEntry<String, double>> groupForDisplay(
+    Map<String, double> packageMap,
+  ) {
+    final map = <String, double>{};
     for (final entry in packageMap.entries) {
       final name = badApps[entry.key] ?? entry.key;
       map[name] = (map[name] ?? 0) + entry.value;
@@ -77,34 +88,48 @@ class ScreentimeRepository {
     return map.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
   }
 
-  Future<void> uploadScreentime(Map<String, int> packageMap) async {
+  Future<void> uploadScreentime(
+    Map<String, double> packageMap,
+    DateTime day,
+  ) async {
     final user = _client.auth.currentUser;
     if (user == null) return;
 
     final grouped = groupForDisplay(packageMap);
     final totalBadMinutes = grouped.fold<double>(0, (sum, e) => sum + e.value);
     final badAppsBreakdown = grouped
-        .map((e) => {'appName': e.key, 'minutes': e.value.toDouble()})
+        .map((e) => {'appName': e.key, 'minutes': e.value})
         .toList();
+    final today = dateKey(day);
 
     await _client.from('screentime').upsert({
       'user_id': user.id,
+      'date_key': today,
       'total_bad_minutes': totalBadMinutes,
       'bad_apps_breakdown': badAppsBreakdown,
       'last_updated': DateTime.now().toUtc().toIso8601String(),
     });
 
-    await _rebuildGroupLeaderboard(user.id, badAppsBreakdown);
+    await _rebuildGroupLeaderboard(user.id, badAppsBreakdown, today);
   }
 
   Future<void> syncAndUpload() async {
-    final badAppUsage = await fetchBadAppUsage();
-    await uploadScreentime(badAppUsage);
+    // One clock reading for the whole sync. Deriving the window start and the
+    // date_key independently would mis-file a sync that straddles midnight,
+    // filing a fresh day's minutes under the previous day.
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day);
+
+    final badAppUsage = await fetchBadAppUsage(startOfDay, now);
+    if (badAppUsage == null) return;
+
+    await uploadScreentime(badAppUsage, startOfDay);
   }
 
   Future<void> _rebuildGroupLeaderboard(
     String userId,
     List<Map<String, dynamic>> myBreakdown,
+    String today,
   ) async {
     final userDoc = await _groupRepository.fetchUser(userId);
     final groupId = userDoc?.groupId;
@@ -140,7 +165,12 @@ class ScreentimeRepository {
       final st = screentimeByUid[uid];
       final username = (user?['username'] as String?) ?? 'Unknown';
 
-      if (st == null) {
+      // `screentime` holds one row per user, overwritten on their last sync —
+      // it carries no date of its own beyond date_key. A member who stopped
+      // syncing yesterday still has yesterday's row, so without this check
+      // their old total is republished as today's figure every rebuild and
+      // never resets. Treat anything not stamped with today as no data.
+      if (st == null || st['date_key'] != today) {
         entries.add({
           'uid': uid,
           'username': username,
@@ -182,7 +212,6 @@ class ScreentimeRepository {
       entries: entries,
     );
 
-    final today = dateKey(DateTime.now());
     final myFiltered = myBreakdown
         .where((e) => activeApps.contains(e['appName']))
         .toList();
