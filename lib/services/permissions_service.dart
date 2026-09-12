@@ -5,7 +5,16 @@ import 'package:leaderboard/core/theme/app_theme.dart';
 import 'package:leaderboard/data/repositories/screentime_repository.dart';
 
 class PermissionsService {
+  // Guards against the onboarding flow (usage access -> notifications ->
+  // battery optimization, each potentially a trip to the OS Settings app)
+  // firing more than once per app run. Without this, anything that causes
+  // HomeScreen to mount a second time re-triggers the whole chain, stacking
+  // extra Settings screens the user has to back out of.
+  static bool _hasRequestedThisSession = false;
+
   Future<void> requestAll(BuildContext context) async {
+    if (_hasRequestedThisSession) return;
+    _hasRequestedThisSession = true;
     await requestUsageStatsPermission(context);
     await requestNotificationPermission(context);
     await requestBatteryOptimizationExemption(context);
@@ -23,7 +32,7 @@ class PermissionsService {
             'and toggle on "Permit usage access".',
         confirmLabel: 'Open Settings',
       );
-      if (confirmed) await openAppSettings();
+      if (confirmed) await ScreentimeRepository.openUsageAccessSettings();
     }
   }
 
@@ -77,15 +86,10 @@ class PermissionsService {
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: AppBorders.radius,
-          side: AppBorders.thin,
-        ),
-        title: Text(title, style: AppTextStyles.heading()),
+        title: Text(title, style: AppTextStyles.title(size: 18)),
         content: Text(
           message,
-          style: AppTextStyles.body(color: AppColors.textSecondary),
+          style: AppTextStyles.copy(),
         ),
         actions: [
           TextButton(
@@ -97,8 +101,7 @@ class PermissionsService {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.success),
-            child: Text(confirmLabel, style: AppTextStyles.body()),
+            child: Text(confirmLabel),
           ),
         ],
       ),

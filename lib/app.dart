@@ -15,7 +15,7 @@ class AppUsageApp extends ConsumerWidget {
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark(),
+      theme: AppTheme.light(),
       home: authState.when(
         loading: () =>
             const Scaffold(body: Center(child: CircularProgressIndicator())),

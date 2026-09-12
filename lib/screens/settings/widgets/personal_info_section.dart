@@ -14,67 +14,48 @@ class PersonalInfoSection extends ConsumerWidget {
     final auth = ref.read(authRepositoryProvider);
 
     return Padding(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.all(20),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              const Icon(
-                Icons.person_outline,
-                size: 16,
-                color: AppColors.primaryLight,
+          Text('USERNAME', style: AppTextStyles.fieldLabel()),
+          const SizedBox(height: 4),
+          Text(
+            (user?.userMetadata?['username'] as String?) ?? 'No username set',
+            style: AppTextStyles.body(size: 16),
+          ),
+          const SizedBox(height: 16),
+          Text('EMAIL', style: AppTextStyles.fieldLabel()),
+          const SizedBox(height: 4),
+          Text(
+            user?.email ?? 'No email found',
+            style: AppTextStyles.body(size: 16),
+          ),
+          const SizedBox(height: 20),
+          InkWell(
+            borderRadius: BorderRadius.circular(AppRadii.pill),
+            onTap: () => _signOut(context, ref, auth),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.tan,
+                borderRadius: BorderRadius.circular(AppRadii.pill),
               ),
-              const SizedBox(width: AppSpacing.sm),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text('USERNAME', style: AppTextStyles.label()),
+                  const Icon(
+                    Icons.logout,
+                    size: 15,
+                    color: AppColors.textSecondary,
+                  ),
+                  const SizedBox(width: 8),
                   Text(
-                    (user?.userMetadata?['username'] as String?) ??
-                        'No username set',
-                    style: AppTextStyles.body(),
+                    'Sign out',
+                    style: AppTextStyles.pill(color: AppColors.textSecondary),
                   ),
                 ],
               ),
-            ],
-          ),
-          const Divider(height: AppSpacing.lg, color: AppColors.primary),
-          Row(
-            children: [
-              const Icon(
-                Icons.email_outlined,
-                size: 16,
-                color: AppColors.primaryLight,
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('EMAIL', style: AppTextStyles.label()),
-                  Text(
-                    user?.email ?? 'No email found',
-                    style: AppTextStyles.body(),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          OutlinedButton.icon(
-            onPressed: () => _signOut(context, ref, auth),
-            icon: const Icon(Icons.logout, size: 16, color: AppColors.error),
-            label: Text(
-              'SIGN OUT',
-              style: AppTextStyles.label(color: AppColors.error),
-            ),
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 0),
-              side: const BorderSide(color: AppColors.primary, width: 1),
-              shape: const RoundedRectangleBorder(
-                borderRadius: AppBorders.radius,
-              ),
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
             ),
           ),
         ],
@@ -90,25 +71,22 @@ class PersonalInfoSection extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: AppBorders.radius,
-          side: AppBorders.thin,
-        ),
-        title: Text('SIGN OUT', style: AppTextStyles.heading()),
+        title: Text('Sign out', style: AppTextStyles.title(size: 18)),
         content: Text(
           'Are you sure you want to sign out?',
-          style: AppTextStyles.label(),
+          style: AppTextStyles.copy(),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text('NO', style: AppTextStyles.body()),
+            child: Text('No', style: AppTextStyles.body()),
           ),
-          ElevatedButton(
+          TextButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            child: Text('YES', style: AppTextStyles.body()),
+            child: Text(
+              'Yes',
+              style: AppTextStyles.body(color: AppColors.coralText),
+            ),
           ),
         ],
       ),

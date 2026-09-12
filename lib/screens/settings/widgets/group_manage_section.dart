@@ -27,54 +27,77 @@ class AppVoteList extends ConsumerWidget {
     ref.watch(appVotesProvider);
     final votesNotifier = ref.read(appVotesProvider.notifier);
 
-    return SubSectionCard(
-      icon: Icons.phone_android,
+    final trackedCount = badAppDisplayNames.where((appName) {
+      final voteStr = votesNotifier.voteCount(appName, memberCount);
+      final parts = voteStr.split('/');
+      final votes = int.tryParse(parts[0]) ?? 0;
+      final total = int.tryParse(parts[1]) ?? memberCount;
+      return total > 0 && votes * 2 > total;
+    }).length;
+
+    return SectionCard(
       title: 'TRACKED BAD APPS',
-      subtitle: 'An app is tracked when more than 50% of members vote for it.',
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.xs,
-          ),
-          child: Row(
-            children: [
-              Expanded(child: Text('APP', style: AppTextStyles.label())),
-              Text('VOTES', style: AppTextStyles.label()),
-              const SizedBox(width: 48),
-            ],
-          ),
-        ),
-        const Divider(height: 1, color: AppColors.primary),
-        ...badAppDisplayNames.map((appName) {
+      subtitle: 'Tracked once more than 50% of members vote for it.',
+      child: CollapsibleCard(
+        icon: Icons.smartphone,
+        label: '$trackedCount tracked',
+        initiallyExpanded: false,
+        children: badAppDisplayNames.map((appName) {
           final voted = votesNotifier.isVotedByCurrentUser(appName, userId);
           final voteStr = votesNotifier.voteCount(appName, memberCount);
-          return Row(
-            children: [
-              const SizedBox(width: AppSpacing.sm),
-              Expanded(child: Text(appName, style: AppTextStyles.body())),
-              Text(voteStr, style: AppTextStyles.mono()),
-              Checkbox(
-                value: voted,
-                onChanged: (_) async {
-                  try {
-                    await votesNotifier.toggleVote(appName, userId, group.id);
-                  } catch (_) {
-                    if (context.mounted) {
-                      await ref
-                          .read(authRepositoryProvider)
-                          .showErrorDialog(
-                            context: context,
-                            message: 'Failed to update vote. Please try again.',
-                          );
-                    }
+
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () async {
+                try {
+                  await votesNotifier.toggleVote(appName, userId, group.id);
+                } catch (_) {
+                  if (context.mounted) {
+                    await ref
+                        .read(authRepositoryProvider)
+                        .showErrorDialog(
+                          context: context,
+                          message: 'Failed to update vote. Please try again.',
+                        );
                   }
-                },
+                }
+              },
+              child: Row(
+                children: [
+                  Container(
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: voted ? AppColors.sky : AppColors.surface,
+                      borderRadius: BorderRadius.circular(7),
+                      border: voted
+                          ? null
+                          : Border.all(color: AppColors.tanBorder),
+                    ),
+                    child: voted
+                        ? const Icon(
+                            Icons.check,
+                            size: 13,
+                            color: AppColors.skyDark,
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 11),
+                  Expanded(
+                    child: Text(appName, style: AppTextStyles.body()),
+                  ),
+                  Text(
+                    voteStr,
+                    style: AppTextStyles.fieldLabel(size: 11),
+                  ),
+                ],
               ),
-            ],
+            ),
           );
-        }),
-      ],
+        }).toList(),
+      ),
     );
   }
 }
@@ -95,25 +118,20 @@ class GroupManageSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Padding(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.group, color: AppColors.primaryBright, size: 18),
-              const SizedBox(width: AppSpacing.sm),
-              Text(group.name, style: AppTextStyles.heading()),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          SubSectionCard(
+    final currentUserId = ref.watch(currentUserProvider)?.id;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionCard(
+          title: 'GROUP MEMBERS',
+          child: CollapsibleCard(
             icon: Icons.people,
-            title: 'MEMBERS',
-            subtitle: isLoadingMembers
-                ? 'Loading...'
-                : '${members.length} member${members.length == 1 ? '' : 's'}',
+            label: group.name,
+            emptyPlaceholder: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text('No members found.', style: AppTextStyles.body()),
+            ),
             children: isLoadingMembers
                 ? [
                     const Center(
@@ -123,67 +141,80 @@ class GroupManageSection extends ConsumerWidget {
                       ),
                     ),
                   ]
-                : members.isEmpty
-                ? [
-                    Padding(
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      child: Text(
-                        'No members found.',
-                        style: AppTextStyles.body(),
+                : members.map((member) {
+                    final isYou = member.id == currentUserId;
+                    final initial = member.username.isNotEmpty
+                        ? member.username[0].toLowerCase()
+                        : '?';
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 5),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 24,
+                            height: 24,
+                            decoration: BoxDecoration(
+                              color: isYou ? AppColors.sky : AppColors.tanMuted,
+                              shape: BoxShape.circle,
+                            ),
+                            alignment: Alignment.center,
+                            child: Text(
+                              initial,
+                              style: AppTextStyles.body(
+                                size: 11,
+                                color: isYou
+                                    ? AppColors.skyDark
+                                    : AppColors.textMuted,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 11),
+                          Expanded(
+                            child: Text(
+                              member.username,
+                              style: AppTextStyles.body(),
+                            ),
+                          ),
+                          if (isYou)
+                            Text(
+                              'YOU',
+                              style: AppTextStyles.fieldLabel(
+                                size: 10,
+                                color: AppColors.skyText,
+                              ),
+                            ),
+                        ],
                       ),
-                    ),
-                  ]
-                : members
-                      .map(
-                        (member) => Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.md,
-                            vertical: AppSpacing.xs,
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.person,
-                                size: 14,
-                                color: AppColors.textSecondary,
-                              ),
-                              const SizedBox(width: AppSpacing.sm),
-                              Text(
-                                member.username,
-                                style: AppTextStyles.body(
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                      .toList(),
+                    );
+                  }).toList(),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          AppVoteList(group: group, memberCount: members.length),
-          const SizedBox(height: AppSpacing.sm),
-          OutlinedButton.icon(
-            onPressed: () => _leaveGroup(context, ref),
-            icon: const Icon(
-              Icons.exit_to_app,
-              size: 16,
-              color: AppColors.error,
+        ),
+        const SizedBox(height: 20),
+        AppVoteList(group: group, memberCount: members.length),
+        const SizedBox(height: 12),
+        InkWell(
+          borderRadius: BorderRadius.circular(AppRadii.pill),
+          onTap: () => _leaveGroup(context, ref),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 13),
+            decoration: BoxDecoration(
+              color: AppColors.coralBg,
+              borderRadius: BorderRadius.circular(AppRadii.pill),
             ),
-            label: Text(
-              'LEAVE GROUP',
-              style: AppTextStyles.label(color: AppColors.error),
-            ),
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: AppColors.primary, width: 1),
-              shape: const RoundedRectangleBorder(
-                borderRadius: AppBorders.radius,
-              ),
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.logout, size: 15, color: AppColors.coralText),
+                const SizedBox(width: 8),
+                Text(
+                  'Leave group',
+                  style: AppTextStyles.pill(color: AppColors.coralText),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -192,25 +223,22 @@ class GroupManageSection extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: AppBorders.radius,
-          side: AppBorders.thin,
-        ),
-        title: Text('LEAVE GROUP', style: AppTextStyles.heading()),
+        title: Text('Leave group', style: AppTextStyles.title(size: 18)),
         content: Text(
           'Are you sure you want to leave this group?',
-          style: AppTextStyles.label(),
+          style: AppTextStyles.copy(),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text('NO', style: AppTextStyles.body()),
+            child: Text('No', style: AppTextStyles.body()),
           ),
-          ElevatedButton(
+          TextButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-            child: Text('YES', style: AppTextStyles.body()),
+            child: Text(
+              'Yes',
+              style: AppTextStyles.body(color: AppColors.coralText),
+            ),
           ),
         ],
       ),

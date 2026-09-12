@@ -48,7 +48,8 @@ class LeaderboardRealtimeNotifier extends StateNotifier<int> {
 
 final leaderboardRealtimeProvider =
     StateNotifierProvider<LeaderboardRealtimeNotifier, int>((ref) {
-      final notifier = LeaderboardRealtimeNotifier(ref);
-      ref.onDispose(notifier.dispose);
-      return notifier;
+      // StateNotifierProvider already disposes the returned notifier itself;
+      // registering ref.onDispose(notifier.dispose) here as well would
+      // dispose it twice and throw on teardown.
+      return LeaderboardRealtimeNotifier(ref);
     });

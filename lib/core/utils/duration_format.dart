@@ -1,6 +1,7 @@
 String formatMinutes(double minutes) {
-  final hrs = (minutes / 60).floor();
-  final mins = (minutes % 60).round();
+  final total = minutes.round();
+  final hrs = total ~/ 60;
+  final mins = total % 60;
   return hrs > 0 ? '${hrs}h ${mins}m' : '${mins}m';
 }
 

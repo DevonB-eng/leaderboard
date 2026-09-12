@@ -31,9 +31,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _permissionsService.requestAll(context);
-      _initializeHome();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _permissionsService.requestAll(context);
+      if (mounted) _initializeHome();
     });
   }
 
@@ -104,44 +104,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             AppHeader(
-              title: 'LEADERBOARD',
-              trailing: IconButton(
-                icon: const Icon(
-                  Icons.refresh,
-                  color: AppColors.textPrimary,
-                  size: 22,
+              title: 'Leaderboard',
+              actions: [
+                HeaderIconButton(
+                  icon: Icons.refresh,
+                  tooltip: 'Refresh',
+                  onPressed: () =>
+                      ref.read(screentimeSyncProvider.notifier).sync(),
                 ),
-                tooltip: 'Refresh',
-                onPressed: () =>
-                    ref.read(screentimeSyncProvider.notifier).sync(),
-              ),
-              navButton: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: _navigateToSettings,
-                      icon: const Icon(
-                        Icons.settings,
-                        size: 16,
-                        color: AppColors.textPrimary,
-                      ),
-                      label: Text(
-                        'SETTINGS & INFO',
-                        style: AppTextStyles.body(),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: AppSpacing.sm,
-                        ),
-                        side: const BorderSide(width: 1),
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: AppBorders.radius,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                HeaderIconButton(
+                  icon: Icons.settings_outlined,
+                  tooltip: 'Settings',
+                  onPressed: _navigateToSettings,
+                ),
+              ],
             ),
             Expanded(
               child: groupIdAsync.when(
@@ -173,7 +149,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                           child: Text(
                             'No data yet!',
                             style: AppTextStyles.body(
-                              color: AppColors.textSecondary,
+                              color: AppColors.textMuted,
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -181,20 +157,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                       }
 
                       return SingleChildScrollView(
-                        padding: const EdgeInsets.all(AppSpacing.md),
+                        padding: const EdgeInsets.fromLTRB(22, 14, 22, 22),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            LeaderboardTable(
-                              entries: entries,
-                              currentUserId: currentUser?.id,
-                            ),
-                            const SizedBox(height: AppSpacing.md),
                             StatsSummary(
                               entries: entries,
                               currentUserId: currentUser?.id,
                             ),
-                            const SizedBox(height: AppSpacing.md),
+                            const SizedBox(height: 20),
+                            LeaderboardTable(
+                              entries: entries,
+                              currentUserId: currentUser?.id,
+                            ),
+                            const SizedBox(height: 20),
                             WeeklyChart(
                               history: historyAsync.valueOrNull,
                               dateKeys: dateKeys,

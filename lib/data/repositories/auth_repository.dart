@@ -24,16 +24,11 @@ class AuthRepository {
       barrierDismissible: true,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          backgroundColor: AppColors.surfaceRaised,
-          shape: RoundedRectangleBorder(
-            borderRadius: AppBorders.radius,
-            side: const BorderSide(color: AppColors.error, width: 1.0),
-          ),
           title: Text(
-            'ERROR',
-            style: AppTextStyles.heading(color: AppColors.error),
+            'Error',
+            style: AppTextStyles.title(size: 18, color: AppColors.coralText),
           ),
-          content: Text(message, style: AppTextStyles.body()),
+          content: Text(message, style: AppTextStyles.copy()),
           actions: [
             TextButton(
               child: Text(

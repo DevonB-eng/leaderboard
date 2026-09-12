@@ -25,14 +25,9 @@ class _EmailSignInButtonState extends ConsumerState<EmailSignInButton> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(
-          backgroundColor: AppColors.surface,
-          shape: RoundedRectangleBorder(
-            borderRadius: AppBorders.radius,
-            side: AppBorders.thin,
-          ),
           title: Text(
-            isSignUp ? 'Sign Up with Email' : 'Sign In with Email',
-            style: AppTextStyles.heading(),
+            isSignUp ? 'Sign up with email' : 'Sign in with email',
+            style: AppTextStyles.title(size: 18),
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -41,10 +36,7 @@ class _EmailSignInButtonState extends ConsumerState<EmailSignInButton> {
                 TextField(
                   controller: nameController,
                   style: AppTextStyles.body(),
-                  decoration: const InputDecoration(
-                    labelText: 'Username',
-                    border: OutlineInputBorder(),
-                  ),
+                  decoration: const InputDecoration(labelText: 'Username'),
                   keyboardType: TextInputType.name,
                 ),
                 const SizedBox(height: 16),
@@ -52,20 +44,14 @@ class _EmailSignInButtonState extends ConsumerState<EmailSignInButton> {
               TextField(
                 controller: emailController,
                 style: AppTextStyles.body(),
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  border: OutlineInputBorder(),
-                ),
+                decoration: const InputDecoration(labelText: 'Email'),
                 keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: passwordController,
                 style: AppTextStyles.body(),
-                decoration: const InputDecoration(
-                  labelText: 'Password',
-                  border: OutlineInputBorder(),
-                ),
+                decoration: const InputDecoration(labelText: 'Password'),
                 obscureText: true,
               ),
               const SizedBox(height: 8),
@@ -73,9 +59,9 @@ class _EmailSignInButtonState extends ConsumerState<EmailSignInButton> {
                 onPressed: () => setDialogState(() => isSignUp = !isSignUp),
                 child: Text(
                   isSignUp
-                      ? 'Already have an account? Sign In'
-                      : 'Don\'t have an account? Sign Up',
-                  style: AppTextStyles.label(color: AppColors.primaryLight),
+                      ? 'Already have an account? Sign in'
+                      : "Don't have an account? Sign up",
+                  style: AppTextStyles.copy(size: 12, color: AppColors.skyText),
                 ),
               ),
             ],
@@ -83,12 +69,9 @@ class _EmailSignInButtonState extends ConsumerState<EmailSignInButton> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: Text('Cancel', style: AppTextStyles.body()),
+              child: const Text('Cancel'),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.success,
-              ),
               onPressed: () async {
                 if (isSignUp && nameController.text.trim().isEmpty) {
                   await ref
@@ -123,10 +106,7 @@ class _EmailSignInButtonState extends ConsumerState<EmailSignInButton> {
                   if (mounted) setState(() => _isSigningIn = false);
                 }
               },
-              child: Text(
-                isSignUp ? 'Sign Up' : 'Sign In',
-                style: AppTextStyles.body(),
-              ),
+              child: Text(isSignUp ? 'Sign up' : 'Sign in'),
             ),
           ],
         ),
@@ -136,43 +116,22 @@ class _EmailSignInButtonState extends ConsumerState<EmailSignInButton> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      child: _isSigningIn
-          ? const CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(
-                AppColors.primaryBright,
-              ),
-            )
-          : ElevatedButton(
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 0),
-                side: const BorderSide(color: AppColors.primaryLight, width: 1),
-                backgroundColor: AppColors.surface,
-                shape: const RoundedRectangleBorder(
-                  borderRadius: AppBorders.radius,
-                ),
-                padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-              ),
-              onPressed: _showEmailPasswordDialog,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(0, 10, 0, 10),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.email, size: 35),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 10),
-                      child: Text(
-                        'Sign in with Email',
-                        style: AppTextStyles.body(),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+    return _isSigningIn
+        ? const Center(
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2.5),
             ),
-    );
+          )
+        : ElevatedButton.icon(
+            onPressed: _showEmailPasswordDialog,
+            icon: const Icon(Icons.email_outlined, size: 18),
+            label: const Text('Sign in with email'),
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 0),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+          );
   }
 }

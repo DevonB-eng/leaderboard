@@ -16,29 +16,21 @@ class NoGroupPrompt extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(Icons.group_off, size: 80, color: AppColors.textMuted),
+            const Icon(Icons.group_off, size: 72, color: AppColors.textMuted),
             const SizedBox(height: AppSpacing.lg),
             Text(
               'Join a group to see the leaderboard!',
               textAlign: TextAlign.center,
-              style: AppTextStyles.body(color: AppColors.textSecondary),
+              style: AppTextStyles.body(color: AppColors.textMuted),
             ),
-            const SizedBox(height: AppSpacing.md),
+            const SizedBox(height: AppSpacing.lg),
             ElevatedButton.icon(
               onPressed: onJoinPressed,
-              icon: const Icon(Icons.group_add),
-              label: Text(
-                'JOIN OR CREATE GROUP',
-                style: AppTextStyles.label(color: AppColors.textPrimary),
-              ),
-              style: OutlinedButton.styleFrom(
+              icon: const Icon(Icons.group_add, size: 16),
+              label: const Text('Join or create group'),
+              style: ElevatedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 0),
-                side: const BorderSide(width: 1),
-                backgroundColor: AppColors.surface,
-                shape: const RoundedRectangleBorder(
-                  borderRadius: AppBorders.radius,
-                ),
-                padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                padding: const EdgeInsets.symmetric(vertical: 13),
               ),
             ),
           ],

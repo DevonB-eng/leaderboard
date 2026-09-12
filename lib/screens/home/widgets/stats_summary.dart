@@ -37,78 +37,111 @@ class StatsSummary extends StatelessWidget {
         ? otherTotal / otherEntries.length
         : 0.0;
     final delta = myMinutes - groupAvg;
-    final deltaStr = delta >= 0
-        ? '+${formatMinutes(delta)} above avg'
-        : '-${formatMinutes(delta.abs())} below avg';
-    final deltaColor = delta > 0 ? AppColors.error : AppColors.success;
+    final isUnder = delta <= 0;
+    final deltaLabel =
+        '${formatMinutes(delta.abs())} ${isUnder ? 'under' : 'over'}';
+
+    final sorted = [...entries]
+      ..sort((a, b) => b.totalBadMinutes.compareTo(a.totalBadMinutes));
+    final rank = myEntry == null
+        ? null
+        : sorted.indexWhere((e) => e.userId == currentUserId) + 1;
 
     return SectionCard(
-      title: 'TODAY\'S STATS',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.md,
-              AppSpacing.md,
-              AppSpacing.md,
-              AppSpacing.xs,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      title: 'YOUR SCREENTIME',
+      useHeroShadow: true,
+      child: Padding(
+        padding: const EdgeInsets.all(22),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text('You', style: AppTextStyles.body()),
-                Text(
-                  formatMinutes(myMinutes),
-                  style: AppTextStyles.mono(color: AppColors.primaryBright),
+                Text(formatMinutes(myMinutes), style: AppTextStyles.bigNumber()),
+                const SizedBox(width: 12),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 5),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 11,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: isUnder ? AppColors.sageBg : AppColors.coralBg,
+                      borderRadius: BorderRadius.circular(AppRadii.pill),
+                    ),
+                    child: Text(
+                      deltaLabel,
+                      style: AppTextStyles.pill(
+                        color: isUnder ? AppColors.sageText : AppColors.coralText,
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ),
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            child: Divider(height: 1, color: AppColors.primary),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.xs,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            if (myEntry != null && rank != null) ...[
+              const SizedBox(height: 14),
+              Text(
+                _playfulCopy(rank, entries.length, delta),
+                style: AppTextStyles.copy(),
+              ),
+            ],
+            const SizedBox(height: 18),
+            const Divider(height: 1, color: AppColors.divider),
+            const SizedBox(height: 16),
+            Row(
               children: [
-                Text('Group Avg', style: AppTextStyles.body()),
-                Text(
-                  formatMinutes(groupAvg),
-                  style: AppTextStyles.mono(color: AppColors.textSecondary),
-                ),
+                _Stat(label: 'GROUP AVG', value: formatMinutes(groupAvg)),
+                const SizedBox(width: 26),
+                if (rank != null)
+                  _Stat(label: 'YOUR RANK', value: '$rank of ${entries.length}'),
               ],
             ),
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: AppSpacing.md),
-            child: Divider(height: 1, color: AppColors.primary),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.md,
-              AppSpacing.xs,
-              AppSpacing.md,
-              AppSpacing.md,
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'vs Average',
-                  style: AppTextStyles.label(color: AppColors.textSecondary),
-                ),
-                Text(deltaStr, style: AppTextStyles.mono(color: deltaColor)),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
+    );
+  }
+
+  String _playfulCopy(int rank, int total, double delta) {
+    final vsAvg = delta <= 0
+        ? '${formatMinutes(delta.abs())} under the group average'
+        : '${formatMinutes(delta.abs())} over the group average';
+    return '${_ordinal(rank)} place of $total today, $vsAvg.';
+  }
+
+  String _ordinal(int n) {
+    if (n % 100 >= 11 && n % 100 <= 13) return '${n}th';
+    switch (n % 10) {
+      case 1:
+        return '${n}st';
+      case 2:
+        return '${n}nd';
+      case 3:
+        return '${n}rd';
+      default:
+        return '${n}th';
+    }
+  }
+}
+
+class _Stat extends StatelessWidget {
+  const _Stat({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: AppTextStyles.fieldLabel()),
+        const SizedBox(height: 4),
+        Text(value, style: AppTextStyles.body(size: 16)),
+      ],
     );
   }
 }

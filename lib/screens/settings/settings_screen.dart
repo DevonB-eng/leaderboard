@@ -46,96 +46,79 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             AppHeader(
-              title: 'SETTINGS & INFO',
-              navButton: Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(
-                        Icons.home,
-                        size: 16,
-                        color: AppColors.textPrimary,
-                      ),
-                      label: Text(
-                        'HOME SCREEN',
-                        style: AppTextStyles.body(color: AppColors.textPrimary),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: AppSpacing.sm,
-                        ),
-                        side: const BorderSide(
-                          color: AppColors.textPrimary,
-                          width: 1,
-                        ),
-                        shape: const RoundedRectangleBorder(
-                          borderRadius: AppBorders.radius,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+              title: 'Settings & Info',
+              actions: [
+                HeaderIconButton(
+                  icon: Icons.close,
+                  tooltip: 'Close',
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
             ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.all(AppSpacing.md),
+                padding: const EdgeInsets.fromLTRB(22, 14, 22, 22),
                 children: [
-                  SectionCard(
-                    title: 'GROUP SETTINGS',
-                    child: groupAsync.when(
-                      loading: () => const Padding(
+                  groupAsync.when(
+                    loading: () => const SectionCard(
+                      title: 'GROUP',
+                      child: Padding(
                         padding: EdgeInsets.all(AppSpacing.lg),
                         child: Center(child: CircularProgressIndicator()),
                       ),
-                      error: (e, _) => Padding(
-                        padding: const EdgeInsets.all(AppSpacing.md),
+                    ),
+                    error: (e, _) => SectionCard(
+                      title: 'GROUP',
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
                         child: Text(
                           'Error: $e',
                           style: AppTextStyles.body(color: AppColors.error),
                         ),
                       ),
-                      data: (group) {
-                        if (group == null) {
-                          return GroupJoinSection(
-                            onGroupChanged: _onGroupChanged,
-                          );
-                        }
-                        return membersAsync.when(
-                          loading: () => GroupManageSection(
-                            group: group,
-                            members: const [],
-                            isLoadingMembers: true,
-                            onGroupLeft: _onGroupChanged,
-                          ),
-                          error: (_, __) => GroupManageSection(
-                            group: group,
-                            members: const [],
-                            isLoadingMembers: false,
-                            onGroupLeft: _onGroupChanged,
-                          ),
-                          data: (members) => GroupManageSection(
-                            group: group,
-                            members: members,
-                            isLoadingMembers: false,
-                            onGroupLeft: _onGroupChanged,
+                    ),
+                    data: (group) {
+                      if (group == null) {
+                        return SectionCard(
+                          title: 'GROUP',
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: GroupJoinSection(
+                              onGroupChanged: _onGroupChanged,
+                            ),
                           ),
                         );
-                      },
-                    ),
+                      }
+                      return membersAsync.when(
+                        loading: () => GroupManageSection(
+                          group: group,
+                          members: const [],
+                          isLoadingMembers: true,
+                          onGroupLeft: _onGroupChanged,
+                        ),
+                        error: (_, __) => GroupManageSection(
+                          group: group,
+                          members: const [],
+                          isLoadingMembers: false,
+                          onGroupLeft: _onGroupChanged,
+                        ),
+                        data: (members) => GroupManageSection(
+                          group: group,
+                          members: members,
+                          isLoadingMembers: false,
+                          onGroupLeft: _onGroupChanged,
+                        ),
+                      );
+                    },
                   ),
-                  const SizedBox(height: AppSpacing.md),
-                  const SectionCard(
-                    title: 'PERSONAL',
-                    child: PersonalInfoSection(),
+                  const SizedBox(height: 20),
+                  const SectionCard(title: 'YOU', child: PersonalInfoSection()),
+                  const SizedBox(height: 20),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 4, bottom: 10),
+                    child: Text('ABOUT', style: AppTextStyles.kicker()),
                   ),
-                  const SizedBox(height: AppSpacing.md),
-                  const SectionCard(
-                    title: 'ABOUT THIS APP',
-                    child: AboutSection(),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
+                  const AboutSection(),
                 ],
               ),
             ),

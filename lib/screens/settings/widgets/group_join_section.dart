@@ -11,53 +11,38 @@ class GroupJoinSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Padding(
-      padding: const EdgeInsets.all(AppSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ElevatedButton.icon(
-            onPressed: () => showJoinGroupDialog(
-              context: context,
-              ref: ref,
-              onJoined: onGroupChanged,
-            ),
-            icon: const Icon(Icons.group_add, size: 16),
-            label: Text(
-              'JOIN GROUP',
-              style: AppTextStyles.body(color: AppColors.primaryLight),
-            ),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-              side: const BorderSide(color: AppColors.primary),
-              backgroundColor: AppColors.surface,
-              shape: const RoundedRectangleBorder(
-                borderRadius: AppBorders.radius,
-                side: AppBorders.thin,
-              ),
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ElevatedButton.icon(
+          onPressed: () => showJoinGroupDialog(
+            context: context,
+            ref: ref,
+            onJoined: onGroupChanged,
           ),
-          const SizedBox(height: AppSpacing.sm),
-          ElevatedButton.icon(
-            onPressed: () => showCreateGroupDialog(
-              context: context,
-              ref: ref,
-              onCreated: onGroupChanged,
-            ),
-            icon: const Icon(Icons.add, size: 16),
-            label: Text('CREATE GROUP', style: AppTextStyles.body()),
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size(double.infinity, 0),
-              side: const BorderSide(color: AppColors.primary, width: 1),
-              backgroundColor: AppColors.surface,
-              shape: const RoundedRectangleBorder(
-                borderRadius: AppBorders.radius,
-              ),
-              padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-            ),
+          icon: const Icon(Icons.group_add, size: 16),
+          label: const Text('Join group'),
+          style: ElevatedButton.styleFrom(
+            minimumSize: const Size(double.infinity, 0),
+            padding: const EdgeInsets.symmetric(vertical: 13),
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 10),
+        OutlinedButton.icon(
+          onPressed: () => showCreateGroupDialog(
+            context: context,
+            ref: ref,
+            onCreated: onGroupChanged,
+          ),
+          icon: const Icon(Icons.add, size: 16),
+          label: const Text('Create group'),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size(double.infinity, 0),
+            backgroundColor: AppColors.surface,
+            padding: const EdgeInsets.symmetric(vertical: 13),
+          ),
+        ),
+      ],
     );
   }
 }

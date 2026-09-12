@@ -4,120 +4,154 @@ import 'package:leaderboard/core/theme/app_theme.dart';
 import 'package:leaderboard/core/utils/duration_format.dart';
 import 'package:leaderboard/data/models/leaderboard_entry.dart';
 
-class LeaderboardRow extends StatelessWidget {
+class LeaderboardRow extends StatefulWidget {
   const LeaderboardRow({
     super.key,
     required this.index,
     required this.entry,
     required this.isCurrentUser,
+    required this.widthFraction,
+    required this.isAboveAverage,
   });
 
   final int index;
   final LeaderboardEntry entry;
   final bool isCurrentUser;
+  final double widthFraction;
+  final bool isAboveAverage;
+
+  @override
+  State<LeaderboardRow> createState() => _LeaderboardRowState();
+}
+
+class _LeaderboardRowState extends State<LeaderboardRow> {
+  bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {
+    final entry = widget.entry;
     final timeStr = formatMinutes(entry.totalBadMinutes);
     final badAppsData = entry.badAppsBreakdown;
+    final hasBreakdown = badAppsData.isNotEmpty;
+
+    final Color tint = widget.isCurrentUser
+        ? AppColors.skyBg
+        : widget.isAboveAverage
+            ? AppColors.coralBg
+            : AppColors.sageBg;
+    final Color badgeColor = widget.isCurrentUser
+        ? AppColors.sky
+        : AppColors.surface;
+    final Color badgeTextColor = widget.isCurrentUser
+        ? AppColors.skyDark
+        : AppColors.ink;
+    final Color chevronColor = widget.isCurrentUser
+        ? AppColors.skyText
+        : AppColors.textMuted;
 
     return Column(
       children: [
-        Theme(
-          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-          child: ExpansionTile(
-            tilePadding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.xs,
-            ),
-            leading: SizedBox(
-              width: 32,
-              child: Text(
-                '${index + 1}.',
-                style: AppTextStyles.display(
-                  size: 22,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ),
-            title: Row(
+        ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadii.row),
+          child: InkWell(
+            onTap: hasBreakdown
+                ? () => setState(() => _expanded = !_expanded)
+                : null,
+            child: Stack(
               children: [
-                Expanded(
-                  child: Text(
-                    entry.username,
-                    style: AppTextStyles.body(
-                      color: isCurrentUser
-                          ? AppColors.primaryBright
-                          : AppColors.textPrimary,
-                    ),
+                Positioned.fill(
+                  child: FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: widget.widthFraction.clamp(0.0, 1.0),
+                    child: Container(color: tint),
                   ),
                 ),
-                Text(
-                  timeStr,
-                  style: AppTextStyles.mono(color: AppColors.textPrimary),
-                ),
-              ],
-            ),
-            trailing: badAppsData.isNotEmpty
-                ? const Icon(
-                    Icons.expand_more,
-                    color: AppColors.primaryLight,
-                    size: 18,
-                  )
-                : const SizedBox(width: 18),
-            children: [
-              if (badAppsData.isNotEmpty)
-                Container(
-                  color: AppColors.surfaceRaised,
+                Padding(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.sm,
+                    horizontal: 14,
+                    vertical: 12,
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                  child: Row(
                     children: [
-                      Text('APP BREAKDOWN', style: AppTextStyles.label()),
-                      const SizedBox(height: AppSpacing.xs),
-                      ...badAppsData.map((app) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: AppSpacing.xs,
+                      Container(
+                        width: 26,
+                        height: 26,
+                        decoration: BoxDecoration(
+                          color: badgeColor,
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: Text(
+                          '${widget.index + 1}',
+                          style: AppTextStyles.body(
+                            size: 12,
+                            color: badgeTextColor,
                           ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.phone_android,
-                                size: 14,
-                                color: AppColors.textSecondary,
-                              ),
-                              const SizedBox(width: AppSpacing.sm),
-                              Expanded(
-                                child: Text(
-                                  app.appName,
-                                  style: AppTextStyles.body(
-                                    size: 13,
-                                    color: AppColors.textSecondary,
-                                  ),
-                                ),
-                              ),
-                              Text(
-                                formatMinutes(app.minutes),
-                                style: AppTextStyles.mono(
-                                  size: 13,
-                                  color: AppColors.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(entry.username, style: AppTextStyles.body()),
+                      ),
+                      Text(timeStr, style: AppTextStyles.body()),
+                      if (hasBreakdown) ...[
+                        const SizedBox(width: 8),
+                        Icon(
+                          _expanded
+                              ? Icons.keyboard_arrow_up
+                              : Icons.keyboard_arrow_down,
+                          size: 15,
+                          color: chevronColor,
+                        ),
+                      ],
                     ],
                   ),
                 ),
-            ],
+              ],
+            ),
           ),
         ),
-        const Divider(height: 1, color: AppColors.primary),
+        if (_expanded && hasBreakdown)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: badAppsData.map((app) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.5),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 14,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color: AppColors.skyBg,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: Text(
+                          app.appName,
+                          style: AppTextStyles.copy(
+                            size: 13,
+                            color: AppColors.textSecondary,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        formatMinutes(app.minutes),
+                        style: AppTextStyles.copy(
+                          size: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
       ],
     );
   }

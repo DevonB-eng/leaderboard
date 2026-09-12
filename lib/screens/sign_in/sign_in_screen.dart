@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:leaderboard/core/theme/app_theme.dart';
 import 'package:leaderboard/widgets/app_header.dart';
 import 'package:leaderboard/widgets/email_sign_in_button.dart';
-import 'package:leaderboard/widgets/section_card.dart';
 
 class SignInScreen extends StatelessWidget {
   const SignInScreen({super.key});
@@ -16,24 +15,27 @@ class SignInScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const AppHeader(title: 'LEADERBOARD'),
+            const AppHeader(title: 'Leaderboard'),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                padding: const EdgeInsets.symmetric(horizontal: 22),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    SectionCard(
-                      title: 'SIGN IN',
-                      child: Padding(
-                        padding: const EdgeInsets.all(AppSpacing.lg),
-                        child: Text(
-                          'Track your screen time.\nCompete with your friends.',
-                          textAlign: TextAlign.center,
-                          style: AppTextStyles.body(
-                            color: AppColors.textSecondary,
-                          ),
+                    Container(
+                      padding: const EdgeInsets.all(28),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(AppRadii.card),
+                        boxShadow: AppShadows.hero,
+                      ),
+                      child: Text(
+                        'Track your screen time.\nCompete with your friends.',
+                        textAlign: TextAlign.center,
+                        style: AppTextStyles.body(
+                          size: 15,
+                          color: AppColors.textMuted,
                         ),
                       ),
                     ),

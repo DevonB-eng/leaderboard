@@ -8,10 +8,10 @@ class AboutSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.fromLTRB(4, 0, 4, 0),
       child: Text(
         'I built this app soely for the purpose of bullying my friends. If you find it fun as well thats pretty awesome! Also if you are an engineering hiring manager looking to hire interns hit me up.',
-        style: AppTextStyles.body(),
+        style: AppTextStyles.copy(),
       ),
     );
   }

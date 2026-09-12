@@ -1,4 +1,5 @@
 import 'package:app_usage/app_usage.dart';
+import 'package:flutter/services.dart';
 
 import 'package:leaderboard/core/constants/bad_apps.dart';
 import 'package:leaderboard/core/utils/duration_format.dart';
@@ -6,6 +7,14 @@ import 'package:leaderboard/data/repositories/group_repository.dart';
 import 'package:leaderboard/data/repositories/leaderboard_repository.dart';
 import 'package:leaderboard/data/supabase/supabase_client.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+/// The app_usage plugin's getAppUsage() launches the OS usage-access
+/// settings screen as an unconditional side effect whenever permission is
+/// missing — even when it's just being used to check status. This channel
+/// (backed by MainActivity.kt) checks/opens usage access without that side
+/// effect, so callers can test for permission before ever touching the
+/// plugin.
+const _usageAccessChannel = MethodChannel('leaderboard/usage_access');
 
 class ScreentimeRepository {
   ScreentimeRepository({
@@ -23,18 +32,30 @@ class ScreentimeRepository {
 
   static Future<bool> checkUsageStatsGranted() async {
     try {
-      final now = DateTime.now();
-      await AppUsage().getAppUsage(
-        now.subtract(const Duration(minutes: 1)),
-        now,
+      final granted = await _usageAccessChannel.invokeMethod<bool>(
+        'isGranted',
       );
-      return true;
+      return granted ?? false;
     } catch (_) {
       return false;
     }
   }
 
+  /// Opens the OS "Usage access" settings list directly, bypassing the
+  /// app_usage plugin entirely.
+  static Future<void> openUsageAccessSettings() async {
+    try {
+      await _usageAccessChannel.invokeMethod<void>('openSettings');
+    } catch (_) {
+      // Best-effort; nothing to recover if the platform channel is missing.
+    }
+  }
+
   Future<Map<String, int>> fetchBadAppUsage() async {
+    // Never call the plugin while permission is missing — see the class
+    // doc comment on _usageAccessChannel for why.
+    if (!await checkUsageStatsGranted()) return {};
+
     final now = DateTime.now();
     final oneDayAgo = now.subtract(const Duration(days: 1));
     final usage = await AppUsage().getAppUsage(oneDayAgo, now);
@@ -133,11 +154,9 @@ class ScreentimeRepository {
       final rawBreakdown = List<Map<String, dynamic>>.from(
         st['bad_apps_breakdown'] ?? [],
       );
-      final filteredBreakdown = activeApps == null
-          ? rawBreakdown
-          : rawBreakdown
-                .where((e) => activeApps.contains(e['appName']))
-                .toList();
+      final filteredBreakdown = rawBreakdown
+          .where((e) => activeApps.contains(e['appName']))
+          .toList();
       final totalBadMinutes = filteredBreakdown.fold<double>(
         0,
         (sum, item) => sum + ((item['minutes'] as num?)?.toDouble() ?? 0),
@@ -164,9 +183,9 @@ class ScreentimeRepository {
     );
 
     final today = dateKey(DateTime.now());
-    final myFiltered = activeApps == null
-        ? myBreakdown
-        : myBreakdown.where((e) => activeApps.contains(e['appName'])).toList();
+    final myFiltered = myBreakdown
+        .where((e) => activeApps.contains(e['appName']))
+        .toList();
     final myTotal = myFiltered.fold<double>(
       0,
       (sum, item) => sum + ((item['minutes'] as num?)?.toDouble() ?? 0),
@@ -194,15 +213,22 @@ class ScreentimeRepository {
     }
   }
 
-  Set<String>? _getActiveApps(
+  /// An app with no entry in [appVotes] has never been explicitly voted on,
+  /// which the UI (see AppVotesNotifier.isVotedByCurrentUser) treats as
+  /// everyone implicitly voting for it. Mirror that default here per-app —
+  /// otherwise a single explicit vote on one app silently untracks every
+  /// other app that was never touched.
+  Set<String> _getActiveApps(
     Map<String, List<String>> appVotes,
     int totalMembers,
   ) {
-    if (appVotes.isEmpty) return null;
     final activeApps = <String>{};
-    appVotes.forEach((appName, voters) {
-      if (voters.length > totalMembers / 2) activeApps.add(appName);
-    });
+    for (final appName in badAppDisplayNames) {
+      final voters = appVotes[appName];
+      if (voters == null || voters.length > totalMembers / 2) {
+        activeApps.add(appName);
+      }
+    }
     return activeApps;
   }
 }

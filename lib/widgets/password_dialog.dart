@@ -18,18 +18,13 @@ Future<void> showJoinPasswordDialog({
   await showDialog<void>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      backgroundColor: AppColors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: AppBorders.radius,
-        side: AppBorders.thin,
-      ),
-      title: Text('JOIN $groupName', style: AppTextStyles.heading()),
+      title: Text('Join $groupName', style: AppTextStyles.title(size: 18)),
       content: TextField(
         controller: passwordController,
         style: AppTextStyles.body(),
         decoration: const InputDecoration(
           labelText: 'Enter group password',
-          prefixIcon: Icon(Icons.lock),
+          prefixIcon: Icon(Icons.lock, size: 18),
         ),
         obscureText: true,
       ),
@@ -39,7 +34,6 @@ Future<void> showJoinPasswordDialog({
           child: const Text('Cancel'),
         ),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: AppColors.success),
           onPressed: () async {
             try {
               final userId = ref.read(authRepositoryProvider).currentUser?.id;
@@ -70,10 +64,7 @@ Future<void> showJoinPasswordDialog({
               }
             }
           },
-          child: Text(
-            'Join',
-            style: AppTextStyles.label(color: AppColors.textPrimary),
-          ),
+          child: const Text('Join'),
         ),
       ],
     ),
@@ -92,12 +83,7 @@ Future<void> showCreateGroupDialog({
   await showDialog<void>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      backgroundColor: AppColors.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: AppBorders.radius,
-        side: AppBorders.thin,
-      ),
-      title: Text('CREATE GROUP', style: AppTextStyles.heading()),
+      title: Text('Create group', style: AppTextStyles.title(size: 18)),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -106,7 +92,7 @@ Future<void> showCreateGroupDialog({
             style: AppTextStyles.body(),
             decoration: const InputDecoration(
               labelText: 'Group Name',
-              prefixIcon: Icon(Icons.group),
+              prefixIcon: Icon(Icons.group, size: 18),
             ),
           ),
           const SizedBox(height: AppSpacing.md),
@@ -115,7 +101,7 @@ Future<void> showCreateGroupDialog({
             style: AppTextStyles.body(),
             decoration: const InputDecoration(
               labelText: 'Group Password',
-              prefixIcon: Icon(Icons.lock),
+              prefixIcon: Icon(Icons.lock, size: 18),
             ),
             obscureText: true,
           ),
@@ -127,7 +113,6 @@ Future<void> showCreateGroupDialog({
           child: const Text('Cancel'),
         ),
         ElevatedButton(
-          style: ElevatedButton.styleFrom(backgroundColor: AppColors.success),
           onPressed: () async {
             if (nameController.text.isEmpty ||
                 passwordController.text.isEmpty) {
@@ -173,7 +158,7 @@ Future<void> showCreateGroupDialog({
               }
             }
           },
-          child: Text('Create', style: AppTextStyles.body()),
+          child: const Text('Create'),
         ),
       ],
     ),
@@ -193,12 +178,7 @@ Future<void> showJoinGroupDialog({
     context: context,
     builder: (dialogContext) => StatefulBuilder(
       builder: (dialogContext, setDialogState) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: AppBorders.radius,
-          side: AppBorders.thin,
-        ),
-        title: Text('JOIN GROUP', style: AppTextStyles.heading()),
+        title: Text('Join group', style: AppTextStyles.title(size: 18)),
         content: SizedBox(
           width: double.maxFinite,
           child: Column(
@@ -209,7 +189,7 @@ Future<void> showJoinGroupDialog({
                 style: AppTextStyles.body(),
                 decoration: const InputDecoration(
                   labelText: 'Search for groups',
-                  prefixIcon: Icon(Icons.search),
+                  prefixIcon: Icon(Icons.search, size: 18),
                 ),
                 onChanged: (value) async {
                   if (value.isNotEmpty) {
@@ -238,7 +218,7 @@ Future<void> showJoinGroupDialog({
                     ? Center(
                         child: Text(
                           'Search for a group',
-                          style: AppTextStyles.body(),
+                          style: AppTextStyles.copy(),
                         ),
                       )
                     : ListView.builder(
@@ -253,7 +233,7 @@ Future<void> showJoinGroupDialog({
                             ),
                             subtitle: Text(
                               '${group.memberCount} members',
-                              style: AppTextStyles.label(),
+                              style: AppTextStyles.copy(size: 11),
                             ),
                             onTap: () {
                               Navigator.pop(dialogContext);
