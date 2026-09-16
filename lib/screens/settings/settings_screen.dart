@@ -49,8 +49,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               title: 'Settings & Info',
               actions: [
                 HeaderIconButton(
-                  icon: Icons.close,
-                  tooltip: 'Close',
+                  icon: Icons.home,
+                  tooltip: 'Home',
                   onPressed: () => Navigator.pop(context),
                 ),
               ],

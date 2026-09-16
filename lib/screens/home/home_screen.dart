@@ -27,6 +27,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     with WidgetsBindingObserver {
   final _permissionsService = PermissionsService();
 
+  // Set once the app actually leaves the screen. `resumed` also follows a bare
+  // `inactive` (a system dialog, the notification shade), and the battery
+  // prompt should come back when the app is reopened, not the instant the user
+  // answers the system's own battery dialog.
+  bool _leftApp = false;
+
   @override
   void initState() {
     super.initState();
@@ -45,8 +51,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
+    if (state == AppLifecycleState.hidden ||
+        state == AppLifecycleState.paused) {
+      _leftApp = true;
+    } else if (state == AppLifecycleState.resumed) {
       ref.read(screentimeSyncProvider.notifier).sync();
+      if (_leftApp) {
+        _leftApp = false;
+        _permissionsService.requestBatteryOptimizationExemption(context);
+      }
     }
   }
 
@@ -90,6 +103,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     final groupIdAsync = ref.watch(groupIdProvider);
     final leaderboardAsync = ref.watch(leaderboardProvider);
+    final weeklyAsync = ref.watch(weeklyStandingsProvider);
     final historyAsync = ref.watch(historyProvider);
     final currentUser = ref.watch(currentUserProvider);
     ref.watch(leaderboardRealtimeProvider);
@@ -106,12 +120,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             AppHeader(
               title: 'Leaderboard',
               actions: [
-                HeaderIconButton(
-                  icon: Icons.refresh,
-                  tooltip: 'Refresh',
-                  onPressed: () =>
-                      ref.read(screentimeSyncProvider.notifier).sync(),
-                ),
+                // Manual refresh, kept for debugging syncs — the app syncs on
+                // launch, on resume, and in the background.
+                // HeaderIconButton(
+                //   icon: Icons.refresh,
+                //   tooltip: 'Refresh',
+                //   onPressed: () =>
+                //       ref.read(screentimeSyncProvider.notifier).sync(),
+                // ),
                 HeaderIconButton(
                   icon: Icons.settings_outlined,
                   tooltip: 'Settings',
@@ -167,7 +183,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                             ),
                             const SizedBox(height: 20),
                             LeaderboardTable(
-                              entries: entries,
+                              // Until the week's totals land, the day's
+                              // standings stand in rather than an empty card.
+                              entries: weeklyAsync.valueOrNull ?? entries,
                               currentUserId: currentUser?.id,
                             ),
                             const SizedBox(height: 20),
@@ -176,6 +194,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                               dateKeys: dateKeys,
                               dayLabels: dayLabels,
                               isLoading: historyAsync.isLoading,
+                              currentUserId: currentUser?.id,
                             ),
                           ],
                         ),

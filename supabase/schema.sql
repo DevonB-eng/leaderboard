@@ -1,7 +1,10 @@
 -- Leaderboard app schema for Supabase
 -- Run this once in Supabase SQL Editor.
 
-create extension if not exists "pgcrypto";
+-- Supabase keeps extensions in the `extensions` schema, not `public`. The
+-- group functions below list it on their search_path so crypt()/gen_salt()
+-- resolve wherever pgcrypto is installed.
+create extension if not exists pgcrypto with schema extensions;
 
 create table if not exists public.users (
   id uuid primary key references auth.users(id) on delete cascade,
@@ -171,6 +174,7 @@ revoke delete on public.groups from authenticated;
 -- which is a full takeover of every group in the app.
 drop policy if exists "groups_update_members" on public.groups;
 drop policy if exists "groups_update_authenticated" on public.groups;
+drop policy if exists "groups_update_member_votes" on public.groups;
 create policy "groups_update_member_votes"
   on public.groups for update
   to authenticated
@@ -212,11 +216,22 @@ create policy "screentime_update_own"
   with check (auth.uid() = user_id);
 
 -- Screentime history policies
+-- SELECT: own row + fellow group members, so the weekly standings and the
+-- per-day breakdowns on Home can total every member's history, not just
+-- your own. WRITE stays own-row only.
 drop policy if exists "screentime_history_select_own" on public.screentime_history;
-create policy "screentime_history_select_own"
+drop policy if exists "screentime_history_select_own_or_fellow_members" on public.screentime_history;
+create policy "screentime_history_select_own_or_fellow_members"
   on public.screentime_history for select
   to authenticated
-  using (auth.uid() = user_id);
+  using (
+    auth.uid() = user_id
+    or exists (
+      select 1 from public.groups g
+      where auth.uid()::text = any(g.member_ids)
+        and screentime_history.user_id::text = any(g.member_ids)
+    )
+  );
 
 drop policy if exists "screentime_history_write_own" on public.screentime_history;
 create policy "screentime_history_write_own"
@@ -232,6 +247,9 @@ create policy "screentime_history_write_own"
 -- data. Now scoped to members of the group the row belongs to.
 drop policy if exists "group_history_select_authenticated" on public.group_history;
 drop policy if exists "group_history_write_authenticated" on public.group_history;
+drop policy if exists "group_history_select_member" on public.group_history;
+drop policy if exists "group_history_write_member" on public.group_history;
+drop policy if exists "group_history_update_member" on public.group_history;
 create policy "group_history_select_member"
   on public.group_history for select
   to authenticated
@@ -274,6 +292,9 @@ create policy "group_history_update_member"
 
 drop policy if exists "group_leaderboard_select_authenticated" on public.group_leaderboard;
 drop policy if exists "group_leaderboard_write_authenticated" on public.group_leaderboard;
+drop policy if exists "group_leaderboard_select_member" on public.group_leaderboard;
+drop policy if exists "group_leaderboard_write_member" on public.group_leaderboard;
+drop policy if exists "group_leaderboard_update_member" on public.group_leaderboard;
 create policy "group_leaderboard_select_member"
   on public.group_leaderboard for select
   to authenticated
@@ -320,11 +341,42 @@ create policy "group_leaderboard_update_member"
 -- revoked grants above). Passwords are hashed with bcrypt (pgcrypto's
 -- crypt()/gen_salt('bf')) instead of the app's previous unsalted SHA-256,
 -- which was crackable in bulk the moment password_hash was ever readable.
+
+-- A user belongs to at most one group. Creating or joining one drops the
+-- caller from every other group (deleting any left empty, as leave_group
+-- does), so groups.member_ids and users.group_id can't drift apart.
+-- Internal: execute is revoked below, so clients can't call it directly.
+create or replace function public.remove_from_other_groups(p_uid uuid, p_keep_group_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_emptied uuid[];
+begin
+  with updated as (
+    update public.groups
+      set member_ids = array_remove(member_ids, p_uid::text)
+      where p_uid::text = any(member_ids)
+        and id is distinct from p_keep_group_id
+      returning id, member_ids
+  )
+  select coalesce(array_agg(id), '{}') into v_emptied
+    from updated
+    where cardinality(member_ids) = 0;
+
+  delete from public.groups where id = any(v_emptied);
+end;
+$$;
+
+revoke all on function public.remove_from_other_groups(uuid, uuid) from public, anon, authenticated;
+
 create or replace function public.create_group(p_name text, p_password text)
 returns public.groups
 language plpgsql
 security definer
-set search_path = public, pg_temp
+set search_path = public, extensions, pg_temp
 as $$
 declare
   v_uid uuid := auth.uid();
@@ -349,7 +401,14 @@ begin
   values (v_name, v_name_lower, crypt(p_password, gen_salt('bf')), array[v_uid::text], v_uid)
   returning * into v_group;
 
+  -- The app finds a user's group through users.group_id, so a missing profile
+  -- row must fail loudly. Raising also rolls back the insert above.
   update public.users set group_id = v_group.id where id = v_uid;
+  if not found then
+    raise exception 'User profile not found.';
+  end if;
+
+  perform public.remove_from_other_groups(v_uid, v_group.id);
 
   return v_group;
 end;
@@ -362,7 +421,7 @@ create or replace function public.join_group(p_group_id uuid, p_password text)
 returns public.groups
 language plpgsql
 security definer
-set search_path = public, pg_temp
+set search_path = public, extensions, pg_temp
 as $$
 declare
   v_uid uuid := auth.uid();
@@ -377,7 +436,17 @@ begin
     raise exception 'Group not found.';
   end if;
 
-  if v_group.password_hash is null
+  if v_group.password_hash ~ '^[0-9a-f]{64}$' then
+    -- Groups created before hashing moved server-side hold the app's old
+    -- unsalted SHA-256. Check those the old way, then upgrade to bcrypt so
+    -- existing groups stay joinable without anyone resetting a password.
+    if encode(digest(p_password, 'sha256'), 'hex') <> v_group.password_hash then
+      raise exception 'Incorrect password.';
+    end if;
+    update public.groups
+      set password_hash = crypt(p_password, gen_salt('bf'))
+      where id = p_group_id;
+  elsif v_group.password_hash is null
      or crypt(p_password, v_group.password_hash) <> v_group.password_hash then
     raise exception 'Incorrect password.';
   end if;
@@ -390,6 +459,11 @@ begin
   end if;
 
   update public.users set group_id = p_group_id where id = v_uid;
+  if not found then
+    raise exception 'User profile not found.';
+  end if;
+
+  perform public.remove_from_other_groups(v_uid, p_group_id);
 
   return v_group;
 end;
@@ -434,3 +508,110 @@ $$;
 
 revoke all on function public.leave_group(uuid) from public;
 grant execute on function public.leave_group(uuid) to authenticated;
+
+-- User profiles
+-- Every auth account gets its public.users row from this trigger rather than
+-- from the app. The app's own write after sign-up failed silently (an upsert
+-- needs UPDATE on every column, and clients may only update username), which
+-- left accounts with no row — and so no users.group_id to find a group by.
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  insert into public.users (id, username, email)
+  values (
+    new.id,
+    coalesce(
+      nullif(trim(new.raw_user_meta_data->>'username'), ''),
+      nullif(split_part(new.email, '@', 1), ''),
+      'Anonymous'
+    ),
+    coalesce(new.email, '')
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+-- groups.member_ids is a text[], so no foreign key can clean it up: deleting
+-- an account (auth.users cascades to public.users) used to leave its id in
+-- the group forever, counted in member totals and group averages and shown as
+-- an "Unknown" leaderboard entry. Dropping the profile row now drops the user
+-- from every group too (null keeps none), deleting any group left empty.
+-- SECURITY DEFINER so the cleanup still runs when the deleting role isn't
+-- allowed to call the internal helper itself.
+create or replace function public.handle_deleted_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  perform public.remove_from_other_groups(old.id, null);
+  return old;
+end;
+$$;
+
+drop trigger if exists on_user_profile_deleted on public.users;
+create trigger on_user_profile_deleted
+  after delete on public.users
+  for each row execute function public.handle_deleted_user();
+
+-- Backfill for accounts created before the trigger existed: recreate missing
+-- profile rows, point group_id at the group each user is listed in (the
+-- newest, if several), then drop them from any other group.
+insert into public.users (id, username, email)
+select
+  au.id,
+  coalesce(
+    nullif(trim(au.raw_user_meta_data->>'username'), ''),
+    nullif(split_part(au.email, '@', 1), ''),
+    'Anonymous'
+  ),
+  coalesce(au.email, '')
+from auth.users au
+on conflict (id) do nothing;
+
+update public.users u
+set group_id = (
+  select g.id from public.groups g
+  where u.id::text = any(g.member_ids)
+  order by g.created_at desc
+  limit 1
+)
+where u.group_id is null
+  and exists (
+    select 1 from public.groups g where u.id::text = any(g.member_ids)
+  );
+
+select public.remove_from_other_groups(u.id, u.group_id)
+from public.users u
+where u.group_id is not null;
+
+-- Backfill for accounts deleted before on_user_profile_deleted existed: strip
+-- member ids with no profile row, then delete groups left empty. This must run
+-- after the profile backfill above, or an account that was only missing its
+-- profile row would be dropped from its group as if it had been deleted.
+-- Deleting in a separate statement matters: a DELETE sharing a statement with
+-- the UPDATE wouldn't see the emptied arrays.
+update public.groups g
+set member_ids = array(
+  select m.id
+  from unnest(g.member_ids) with ordinality as m(id, ord)
+  where exists (select 1 from public.users u where u.id::text = m.id)
+  order by m.ord
+)
+where exists (
+  select 1 from unnest(g.member_ids) as m(id)
+  where not exists (select 1 from public.users u where u.id::text = m.id)
+);
+
+delete from public.groups where cardinality(member_ids) = 0;

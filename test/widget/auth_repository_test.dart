@@ -190,4 +190,42 @@ void main() {
       );
     });
   });
+
+  group('signUpWithEmailAndPassword', () {
+    testWidgets(
+      'passes the username to auth and leaves the profile row to the database',
+      (tester) async {
+        when(
+          () => mockAuth.signUp(
+            email: any(named: 'email'),
+            password: any(named: 'password'),
+            data: any(named: 'data'),
+          ),
+        ).thenAnswer(
+          (_) async => AuthResponse(
+            user: const User(
+              id: 'u1',
+              appMetadata: {},
+              userMetadata: {'username': 'devon'},
+              aud: 'authenticated',
+              createdAt: '2026-09-16T00:00:00Z',
+            ),
+          ),
+        );
+
+        await pumpSignUp(tester);
+
+        verify(
+          () => mockAuth.signUp(
+            email: 'a@b.com',
+            password: 'password',
+            data: {'username': 'devon'},
+          ),
+        ).called(1);
+        // The on_auth_user_created trigger creates the users row; a write from
+        // the app used to fail silently and leave accounts without one.
+        verifyNever(() => mockClient.from(any()));
+      },
+    );
+  });
 }

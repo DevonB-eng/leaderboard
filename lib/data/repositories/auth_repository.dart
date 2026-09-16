@@ -50,27 +50,16 @@ class AuthRepository {
     required String password,
   }) async {
     try {
+      // The matching public.users row is created by the on_auth_user_created
+      // trigger (supabase/schema.sql) from the username in `data`. Writing it
+      // from here failed silently, leaving accounts with no profile and so no
+      // way to see a group they had joined.
       final response = await _client.auth.signUp(
         email: email,
         password: password,
         data: {'username': username},
       );
-      final user = response.user;
-
-      if (user != null) {
-        try {
-          await _client.from('users').upsert({
-            'id': user.id,
-            'username': username,
-            'email': email,
-            'created_at': DateTime.now().toUtc().toIso8601String(),
-          });
-        } catch (_) {
-          // Auth account may already be created even if profile write fails.
-        }
-      }
-
-      return user;
+      return response.user;
     } on AuthException catch (e) {
       final msg = e.message.toLowerCase();
       if (msg.contains('rate limit') ||

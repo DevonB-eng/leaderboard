@@ -27,6 +27,14 @@ class LeaderboardEntry {
   final List<AppBreakdown> badAppsBreakdown;
   final String? lastUpdated;
 
+  /// When this member last reported, or null if they have reported nothing for
+  /// the current day — in which case [totalBadMinutes] is 0 because no figure
+  /// is known, not because they used nothing.
+  DateTime? get lastUpdatedAt {
+    final raw = lastUpdated;
+    return raw == null ? null : DateTime.tryParse(raw);
+  }
+
   factory LeaderboardEntry.fromJson(Map<String, dynamic> json) {
     final breakdown =
         (json['badAppsBreakdown'] as List<dynamic>?)
