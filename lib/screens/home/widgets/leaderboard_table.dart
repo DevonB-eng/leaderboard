@@ -20,13 +20,9 @@ class LeaderboardTable extends StatelessWidget {
       0,
       (m, e) => e.totalBadMinutes > m ? e.totalBadMinutes : m,
     );
-    final avgMinutes = entries.isEmpty
-        ? 0.0
-        : entries.fold<double>(0, (s, e) => s + e.totalBadMinutes) /
-              entries.length;
 
     return SectionCard(
-      title: 'STANDINGS',
+      title: 'CURRENT WEEKLY STANDINGS',
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
         child: Column(
@@ -40,7 +36,7 @@ class LeaderboardTable extends StatelessWidget {
               entry: entry,
               isCurrentUser: entry.userId == currentUserId,
               widthFraction: fraction,
-              isAboveAverage: entry.totalBadMinutes > avgMinutes,
+              totalEntries: entries.length,
             );
           }).toList(),
         ),

@@ -1,16 +1,10 @@
-import 'package:flutter/services.dart';
-
 import 'package:leaderboard/core/constants/bad_apps.dart';
 import 'package:leaderboard/core/utils/duration_format.dart';
 import 'package:leaderboard/data/repositories/group_repository.dart';
 import 'package:leaderboard/data/repositories/leaderboard_repository.dart';
 import 'package:leaderboard/data/supabase/supabase_client.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-
-/// Backed by MainActivity.kt. Reads usage-stats permission and per-package
-/// foreground time without the side effects and bucket-aggregation errors of
-/// the app_usage plugin — see the doc comment in MainActivity.kt.
-const _usageAccessChannel = MethodChannel('leaderboard/usage_access');
+import 'package:usage_stats/usage_stats.dart';
 
 class ScreentimeRepository {
   ScreentimeRepository({
@@ -28,20 +22,15 @@ class ScreentimeRepository {
 
   static Future<bool> checkUsageStatsGranted() async {
     try {
-      final granted = await _usageAccessChannel.invokeMethod<bool>(
-        'isGranted',
-      );
-      return granted ?? false;
+      return await UsageStats.isGranted();
     } catch (_) {
       return false;
     }
   }
 
-  /// Opens the OS "Usage access" settings list directly, bypassing the
-  /// app_usage plugin entirely.
   static Future<void> openUsageAccessSettings() async {
     try {
-      await _usageAccessChannel.invokeMethod<void>('openSettings');
+      await UsageStats.openSettings();
     } catch (_) {
       // Best-effort; nothing to recover if the platform channel is missing.
     }
@@ -50,19 +39,15 @@ class ScreentimeRepository {
   /// Minutes of foreground time per tracked package between [from] and [to].
   ///
   /// Returns null when usage data can't be read at all — permission missing, or
-  /// the platform channel absent (it is registered by MainActivity, so it does
-  /// not exist in background isolates, and never on iOS). Null means "unknown"
-  /// and must never be collapsed into zero: writing zeros would wipe the day's
-  /// real total out of both `screentime` and `screentime_history`.
+  /// no platform implementation (iOS). Null means "unknown" and must never be
+  /// collapsed into zero: writing zeros would wipe the day's real total out of
+  /// both `screentime` and `screentime_history`.
   Future<Map<String, double>?> fetchBadAppUsage(DateTime from, DateTime to) async {
     if (!await checkUsageStatsGranted()) return null;
 
     final Map<String, int>? usage;
     try {
-      usage = await _usageAccessChannel.invokeMapMethod<String, int>('getUsage', {
-        'start': from.millisecondsSinceEpoch,
-        'end': to.millisecondsSinceEpoch,
-      });
+      usage = await UsageStats.foregroundMillis(from, to);
     } catch (_) {
       return null;
     }
@@ -113,7 +98,9 @@ class ScreentimeRepository {
     await _rebuildGroupLeaderboard(user.id, badAppsBreakdown, today);
   }
 
-  Future<void> syncAndUpload() async {
+  /// Uploads today's usage so far. Returns false, having written nothing, when
+  /// usage couldn't be read (see [fetchBadAppUsage]).
+  Future<bool> syncAndUpload() async {
     // One clock reading for the whole sync. Deriving the window start and the
     // date_key independently would mis-file a sync that straddles midnight,
     // filing a fresh day's minutes under the previous day.
@@ -121,9 +108,10 @@ class ScreentimeRepository {
     final startOfDay = DateTime(now.year, now.month, now.day);
 
     final badAppUsage = await fetchBadAppUsage(startOfDay, now);
-    if (badAppUsage == null) return;
+    if (badAppUsage == null) return false;
 
     await uploadScreentime(badAppUsage, startOfDay);
+    return true;
   }
 
   Future<void> _rebuildGroupLeaderboard(
@@ -225,21 +213,6 @@ class ScreentimeRepository {
       totalBadMinutes: myTotal,
       badAppsBreakdown: myFiltered,
     );
-
-    final withData = entries.where((e) => e['lastUpdated'] != null).toList();
-    if (withData.isNotEmpty) {
-      final avg =
-          withData.fold<double>(
-            0,
-            (sum, e) => sum + ((e['totalBadMinutes'] as num?)?.toDouble() ?? 0),
-          ) /
-          withData.length;
-      await _leaderboardRepository.upsertGroupHistory(
-        groupId: groupId,
-        dateKey: today,
-        averageBadMinutes: avg,
-      );
-    }
   }
 
   /// An app with no entry in [appVotes] has never been explicitly voted on,

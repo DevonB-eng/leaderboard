@@ -30,48 +30,99 @@ class LeaderboardRepository {
     });
   }
 
+  /// Your minutes and the group's per-member average for each of [dateKeys],
+  /// both taken from the members' `screentime_history` rows — the same rows
+  /// the per-day standings are built from, so the chart and the standings
+  /// under it always agree.
   Future<WeeklyHistory> fetchWeeklyHistory({
     required String userId,
-    required String groupId,
+    required List<String> memberIds,
     required List<String> dateKeys,
   }) async {
-    final results = await Future.wait([
-      _client
-          .from('screentime_history')
-          .select()
-          .eq('user_id', userId)
-          .inFilter('date_key', dateKeys),
-      _client
-          .from('group_history')
-          .select()
-          .eq('group_id', groupId)
-          .inFilter('date_key', dateKeys),
-    ]);
+    final rows = memberIds.isEmpty
+        ? const <Map<String, dynamic>>[]
+        : List<Map<String, dynamic>>.from(
+            await _client
+                .from('screentime_history')
+                .select('user_id, date_key, total_bad_minutes')
+                .inFilter('user_id', memberIds)
+                .inFilter('date_key', dateKeys),
+          );
 
-    final personalRows = <String, Map<String, dynamic>>{};
-    for (final row in List<Map<String, dynamic>>.from(results[0])) {
-      final dk = row['date_key']?.toString();
-      if (dk != null) personalRows[dk] = row;
+    return WeeklyHistory.fromHistoryRows(
+      rows: rows,
+      userId: userId,
+      memberCount: memberIds.length,
+      dateKeys: dateKeys,
+    );
+  }
+
+  /// Each member's summed minutes across [dateKeys], for the weekly standings.
+  Future<Map<String, double>> fetchWeeklyTotals({
+    required List<String> userIds,
+    required List<String> dateKeys,
+  }) async {
+    if (userIds.isEmpty) return {};
+
+    final rows = await _client
+        .from('screentime_history')
+        .select('user_id, total_bad_minutes')
+        .inFilter('user_id', userIds)
+        .inFilter('date_key', dateKeys);
+
+    final totals = <String, double>{};
+    for (final row in List<Map<String, dynamic>>.from(rows)) {
+      final uid = row['user_id'] as String?;
+      if (uid == null) continue;
+      final minutes = ((row['total_bad_minutes'] ?? 0) as num).toDouble();
+      totals[uid] = (totals[uid] ?? 0) + minutes;
     }
+    return totals;
+  }
 
-    final groupRows = <String, Map<String, dynamic>>{};
-    for (final row in List<Map<String, dynamic>>.from(results[1])) {
-      final dk = row['date_key']?.toString();
-      if (dk != null) groupRows[dk] = row;
-    }
+  /// One day's standings for a group, built from each member's history row.
+  ///
+  /// Members with no row for [dateKey] are kept at zero so the day still shows
+  /// the whole group.
+  Future<List<LeaderboardEntry>> fetchDayStandings({
+    required Map<String, String> usernamesByUserId,
+    required String dateKey,
+  }) async {
+    if (usernamesByUserId.isEmpty) return [];
 
-    final personal = <String, double>{};
-    final group = <String, double>{};
-    for (final date in dateKeys) {
-      personal[date] = personalRows.containsKey(date)
-          ? ((personalRows[date]?['total_bad_minutes'] ?? 0) as num).toDouble()
-          : 0;
-      group[date] = groupRows.containsKey(date)
-          ? ((groupRows[date]?['average_bad_minutes'] ?? 0) as num).toDouble()
-          : 0;
-    }
+    final rows = await _client
+        .from('screentime_history')
+        .select()
+        .inFilter('user_id', usernamesByUserId.keys.toList())
+        .eq('date_key', dateKey);
 
-    return WeeklyHistory(personal: personal, group: group, dateKeys: dateKeys);
+    final rowsByUserId = <String, Map<String, dynamic>>{
+      for (final row in List<Map<String, dynamic>>.from(rows))
+        row['user_id'] as String: row,
+    };
+
+    final entries = usernamesByUserId.entries.map((member) {
+      final row = rowsByUserId[member.key];
+      final breakdown =
+          (row?['bad_apps_breakdown'] as List<dynamic>?)
+              ?.map(
+                (e) =>
+                    AppBreakdown.fromJson(Map<String, dynamic>.from(e as Map)),
+              )
+              .toList() ??
+          <AppBreakdown>[];
+
+      return LeaderboardEntry(
+        userId: member.key,
+        username: member.value,
+        totalBadMinutes: ((row?['total_bad_minutes'] ?? 0) as num).toDouble(),
+        badAppsBreakdown: breakdown,
+        lastUpdated: row?['recorded_at'] as String?,
+      );
+    }).toList();
+
+    entries.sort((a, b) => b.totalBadMinutes.compareTo(a.totalBadMinutes));
+    return entries;
   }
 
   Future<void> upsertUserHistory({
@@ -85,19 +136,6 @@ class LeaderboardRepository {
       'date_key': dateKey,
       'total_bad_minutes': totalBadMinutes,
       'bad_apps_breakdown': badAppsBreakdown,
-      'recorded_at': DateTime.now().toUtc().toIso8601String(),
-    });
-  }
-
-  Future<void> upsertGroupHistory({
-    required String groupId,
-    required String dateKey,
-    required double averageBadMinutes,
-  }) async {
-    await _client.from('group_history').upsert({
-      'group_id': groupId,
-      'date_key': dateKey,
-      'average_bad_minutes': averageBadMinutes,
       'recorded_at': DateTime.now().toUtc().toIso8601String(),
     });
   }

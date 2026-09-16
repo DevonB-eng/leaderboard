@@ -44,7 +44,7 @@ void main() {
       wrap(const LeaderboardTable(entries: [], currentUserId: 'u1')),
     );
 
-    expect(find.text('STANDINGS'), findsOneWidget);
+    expect(find.text('CURRENT WEEKLY STANDINGS'), findsOneWidget);
     expect(find.text('alice'), findsNothing);
   });
 }

@@ -27,7 +27,7 @@ void main() {
     test('transitions loading -> data on success', () async {
       when(
         () => mockScreentimeRepository.syncAndUpload(),
-      ).thenAnswer((_) async {});
+      ).thenAnswer((_) async => true);
 
       final notifier = container.read(screentimeSyncProvider.notifier);
       expect(container.read(screentimeSyncProvider), const AsyncData<void>(null));

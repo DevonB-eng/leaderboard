@@ -1,9 +1,13 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:leaderboard/core/theme/app_theme.dart';
 import 'package:leaderboard/core/utils/duration_format.dart';
 import 'package:leaderboard/data/models/history_day.dart';
+import 'package:leaderboard/data/models/leaderboard_entry.dart';
+import 'package:leaderboard/providers/history_provider.dart';
+import 'package:leaderboard/screens/home/widgets/leaderboard_row.dart';
 import 'package:leaderboard/widgets/section_card.dart';
 
 /// Candidate y-axis tick spacings, in minutes, from fine to coarse.
@@ -21,22 +25,42 @@ double _chartStepMinutes(double maxMinutes) {
   return (maxMinutes / 4).ceilToDouble();
 }
 
-class WeeklyChart extends StatelessWidget {
+class WeeklyChart extends ConsumerStatefulWidget {
   const WeeklyChart({
     super.key,
     required this.history,
     required this.dateKeys,
     required this.dayLabels,
     required this.isLoading,
+    required this.currentUserId,
   });
 
   final WeeklyHistory? history;
   final List<String> dateKeys;
   final List<String> dayLabels;
   final bool isLoading;
+  final String? currentUserId;
+
+  @override
+  ConsumerState<WeeklyChart> createState() => _WeeklyChartState();
+}
+
+class _WeeklyChartState extends ConsumerState<WeeklyChart> {
+  String? _selectedDate;
+
+  void _toggleDay(int index) {
+    if (index < 0 || index >= widget.dateKeys.length) return;
+    final date = widget.dateKeys[index];
+    setState(() => _selectedDate = _selectedDate == date ? null : date);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final dateKeys = widget.dateKeys;
+    final dayLabels = widget.dayLabels;
+    final isLoading = widget.isLoading;
+    final history = widget.history;
+
     final personal = history?.personal ?? {for (final d in dateKeys) d: 0.0};
     final group = history?.group ?? {for (final d in dateKeys) d: 0.0};
 
@@ -49,6 +73,7 @@ class WeeklyChart extends StatelessWidget {
 
     return SectionCard(
       title: 'LAST 7 DAYS',
+      subtitle: 'Tap a day to see that day\'s standings.',
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
@@ -74,6 +99,12 @@ class WeeklyChart extends StatelessWidget {
                         maxY: maxY,
                         minY: 0,
                         barTouchData: BarTouchData(
+                          touchCallback: (event, response) {
+                            if (event is! FlTapUpEvent) return;
+                            final spot = response?.spot;
+                            if (spot == null) return;
+                            _toggleDay(spot.touchedBarGroupIndex);
+                          },
                           touchTooltipData: BarTouchTooltipData(
                             getTooltipItem: (group, groupIndex, rod, rodIndex) {
                               final label = rodIndex == 0 ? 'You' : 'Group Avg';
@@ -96,13 +127,34 @@ class WeeklyChart extends StatelessWidget {
                                 if (i < 0 || i >= dayLabels.length) {
                                   return const SizedBox.shrink();
                                 }
+                                final selected = _selectedDate == dateKeys[i];
                                 return Padding(
-                                  padding: const EdgeInsets.only(top: 8),
-                                  child: Text(
-                                    dayLabels[i],
-                                    style: AppTextStyles.copy(
-                                      size: 10,
-                                      color: AppColors.textMuted,
+                                  padding: const EdgeInsets.only(top: 6),
+                                  child: GestureDetector(
+                                    behavior: HitTestBehavior.opaque,
+                                    onTap: () => _toggleDay(i),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 3,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: selected
+                                            ? AppColors.skyBg
+                                            : Colors.transparent,
+                                        borderRadius: BorderRadius.circular(
+                                          AppRadii.pill,
+                                        ),
+                                      ),
+                                      child: Text(
+                                        dayLabels[i],
+                                        style: AppTextStyles.copy(
+                                          size: 10,
+                                          color: selected
+                                              ? AppColors.skyText
+                                              : AppColors.textMuted,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 );
@@ -177,9 +229,99 @@ class WeeklyChart extends StatelessWidget {
                   style: AppTextStyles.copy(size: 11),
                 ),
               ),
+            if (_selectedDate != null)
+              _DayStandings(
+                date: _selectedDate!,
+                currentUserId: widget.currentUserId,
+              ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _DayStandings extends ConsumerWidget {
+  const _DayStandings({required this.date, required this.currentUserId});
+
+  final String date;
+  final String? currentUserId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final standings = ref.watch(dailyStandingsProvider(date));
+
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 14, bottom: 12),
+            child: Divider(height: 1, color: AppColors.divider),
+          ),
+          Text(
+            '${fullDayLabel(date).toUpperCase()} STANDINGS',
+            style: AppTextStyles.fieldLabel(),
+          ),
+          const SizedBox(height: 6),
+          standings.when(
+            loading: () => const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+            error: (e, _) => Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                'Could not load this day.',
+                style: AppTextStyles.copy(size: 12, color: AppColors.error),
+              ),
+            ),
+            data: (entries) => _DayRows(
+              entries: entries,
+              currentUserId: currentUserId,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DayRows extends StatelessWidget {
+  const _DayRows({required this.entries, required this.currentUserId});
+
+  final List<LeaderboardEntry> entries;
+  final String? currentUserId;
+
+  @override
+  Widget build(BuildContext context) {
+    if (entries.isEmpty || entries.every((e) => e.totalBadMinutes == 0)) {
+      return Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Text('No usage recorded.', style: AppTextStyles.copy(size: 12)),
+      );
+    }
+
+    final maxMinutes = entries.fold<double>(
+      0,
+      (m, e) => e.totalBadMinutes > m ? e.totalBadMinutes : m,
+    );
+
+    return Column(
+      children: entries.asMap().entries.map((e) {
+        final entry = e.value;
+        final fraction = maxMinutes > 0
+            ? (0.16 + 0.84 * (entry.totalBadMinutes / maxMinutes))
+            : 0.16;
+        return LeaderboardRow(
+          index: e.key,
+          entry: entry,
+          isCurrentUser: entry.userId == currentUserId,
+          widthFraction: fraction,
+          totalEntries: entries.length,
+        );
+      }).toList(),
     );
   }
 }

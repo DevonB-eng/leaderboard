@@ -34,6 +34,11 @@ class AppColors {
   static const Color coralBg = Color(0xFFFAE7EA);
   static const Color coralBgLight = Color(0xFFFDF1F3);
 
+  // Standings ranks — 1st through 3rd, then neutral, with last place sage.
+  static const Color orangeBg = Color(0xFFFBE7D4);
+  static const Color yellowBg = Color(0xFFFAF3D0);
+  static const Color neutralBg = Color(0xFFEAE8E3);
+
   // Neutral tan
   static const Color tan = Color(0xFFF7F1E8);
   static const Color tanMuted = Color(0xFFEEE7DB);

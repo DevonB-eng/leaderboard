@@ -26,20 +26,20 @@ class StatsSummary extends StatelessWidget {
     }
 
     final myMinutes = myEntry?.totalBadMinutes ?? 0.0;
-    final otherEntries = entries
-        .where((e) => e.userId != currentUserId)
-        .toList();
-    final otherTotal = otherEntries.fold<double>(
+    // Averaged over the whole group — you included, and anyone who hasn't
+    // reported today at zero — the same way the weekly chart averages each day.
+    final groupTotal = entries.fold<double>(
       0,
       (sum, e) => sum + e.totalBadMinutes,
     );
-    final groupAvg = otherEntries.isNotEmpty
-        ? otherTotal / otherEntries.length
-        : 0.0;
+    final groupAvg = entries.isNotEmpty ? groupTotal / entries.length : 0.0;
     final delta = myMinutes - groupAvg;
-    final isUnder = delta <= 0;
-    final deltaLabel =
-        '${formatMinutes(delta.abs())} ${isUnder ? 'under' : 'over'}';
+    final isUnder = delta < 0.5;
+    // formatMinutes rounds to the minute, so a gap under half a minute would
+    // read as "0m under"; treat it as level instead.
+    final deltaLabel = delta.abs() < 0.5
+        ? 'at group average'
+        : '${formatMinutes(delta.abs())} ${isUnder ? 'under' : 'over'} group average';
 
     final sorted = [...entries]
       ..sort((a, b) => b.totalBadMinutes.compareTo(a.totalBadMinutes));
@@ -81,13 +81,6 @@ class StatsSummary extends StatelessWidget {
                 ),
               ],
             ),
-            if (myEntry != null && rank != null) ...[
-              const SizedBox(height: 14),
-              Text(
-                _playfulCopy(rank, entries.length, delta),
-                style: AppTextStyles.copy(),
-              ),
-            ],
             const SizedBox(height: 18),
             const Divider(height: 1, color: AppColors.divider),
             const SizedBox(height: 16),
@@ -105,26 +98,6 @@ class StatsSummary extends StatelessWidget {
     );
   }
 
-  String _playfulCopy(int rank, int total, double delta) {
-    final vsAvg = delta <= 0
-        ? '${formatMinutes(delta.abs())} under the group average'
-        : '${formatMinutes(delta.abs())} over the group average';
-    return '${_ordinal(rank)} place of $total today, $vsAvg.';
-  }
-
-  String _ordinal(int n) {
-    if (n % 100 >= 11 && n % 100 <= 13) return '${n}th';
-    switch (n % 10) {
-      case 1:
-        return '${n}st';
-      case 2:
-        return '${n}nd';
-      case 3:
-        return '${n}rd';
-      default:
-        return '${n}th';
-    }
-  }
 }
 
 class _Stat extends StatelessWidget {

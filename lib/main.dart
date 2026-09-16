@@ -17,11 +17,15 @@ Future<void> main() async {
 
   await Workmanager().initialize(callbackDispatcher);
 
+  // `update` rather than `replace`: replace cancels and re-enqueues the work on
+  // every launch, restarting its interval each time, so a frequently opened app
+  // could keep pushing the next background sync out of reach. update keeps the
+  // existing schedule running while still applying any change made here.
   await Workmanager().registerPeriodicTask(
     kSyncTaskName,
     kSyncTaskName,
     frequency: const Duration(minutes: 15),
-    existingWorkPolicy: ExistingPeriodicWorkPolicy.replace,
+    existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
     constraints: Constraints(networkType: NetworkType.connected),
   );
 

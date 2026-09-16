@@ -130,8 +130,8 @@ class _EmailSignInButtonState extends ConsumerState<EmailSignInButton> {
           )
         : ElevatedButton.icon(
             onPressed: _showEmailPasswordDialog,
-            icon: const Icon(Icons.email_outlined, size: 18),
-            label: const Text('Sign in with email'),
+            icon: const Icon(Icons.person_add_alt_1_outlined, size: 18),
+            label: const Text('Sign in/Sign up'),
             style: ElevatedButton.styleFrom(
               minimumSize: const Size(double.infinity, 0),
               padding: const EdgeInsets.symmetric(vertical: 14),
