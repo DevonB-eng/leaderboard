@@ -120,7 +120,9 @@ class UsageStatsPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Activit
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
             val packageName = event.packageName ?: continue
-            records.add(UsageEventRecord(packageName, event.eventType, event.timeStamp))
+            records.add(
+                UsageEventRecord(packageName, event.eventType, event.timeStamp, event.className),
+            )
         }
         return records
     }
