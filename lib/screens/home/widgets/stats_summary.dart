@@ -60,21 +60,25 @@ class StatsSummary extends StatelessWidget {
               children: [
                 Text(formatMinutes(myMinutes), style: AppTextStyles.bigNumber()),
                 const SizedBox(width: 12),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 5),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 11,
-                      vertical: 5,
-                    ),
-                    decoration: BoxDecoration(
-                      color: isUnder ? AppColors.sageBg : AppColors.coralBg,
-                      borderRadius: BorderRadius.circular(AppRadii.pill),
-                    ),
-                    child: Text(
-                      deltaLabel,
-                      style: AppTextStyles.pill(
-                        color: isUnder ? AppColors.sageText : AppColors.coralText,
+                // Flexible bounds the pill to the width left beside the hero
+                // number, so a long label wraps instead of overflowing the card.
+                Flexible(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 5),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 11,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isUnder ? AppColors.sageBg : AppColors.coralBg,
+                        borderRadius: BorderRadius.circular(AppRadii.pill),
+                      ),
+                      child: Text(
+                        deltaLabel,
+                        style: AppTextStyles.pill(
+                          color: isUnder ? AppColors.sageText : AppColors.coralText,
+                        ),
                       ),
                     ),
                   ),

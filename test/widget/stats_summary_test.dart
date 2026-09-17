@@ -113,6 +113,37 @@ void main() {
     },
   );
 
+  testWidgets('a long average pill wraps instead of overflowing the card', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    const entries = [
+      LeaderboardEntry(
+        userId: 'me',
+        username: 'me',
+        totalBadMinutes: 150,
+        badAppsBreakdown: [],
+      ),
+      LeaderboardEntry(
+        userId: 'other',
+        username: 'other',
+        totalBadMinutes: 30,
+        badAppsBreakdown: [],
+      ),
+    ];
+
+    await tester.pumpWidget(
+      wrap(const StatsSummary(entries: entries, currentUserId: 'me')),
+    );
+
+    // A RenderFlex overflow is reported as an exception during layout.
+    expect(tester.takeException(), isNull);
+    expect(find.text('1h 0m over group average'), findsOneWidget);
+  });
+
   testWidgets('a lone member is level with the group average', (tester) async {
     const entries = [
       LeaderboardEntry(
